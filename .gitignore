@@ -1,3 +1,4 @@
 node_modules/
 .env
 *.local
+docs/phase0/probe/node_modules/

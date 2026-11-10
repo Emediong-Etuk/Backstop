@@ -1,0 +1,171 @@
+pragma cashscript ^0.14.0;
+
+// Backstop: a pre-funded rescue for one ParyonUSD loan.
+//
+// A vault is two UTXOs locked by this contract:
+//   - the key UTXO:     1000 sats + the loan's minting loan-key NFT
+//   - the reserve UTXO: the borrower's BCH reserve, no tokens
+// Two UTXOs, because Paryon's manage function requires the loan key to come back with
+// exactly the BCH value it went in with (manage.cash:121), so the key UTXO cannot shrink.
+//
+// rescue() is callable by anyone. It only accepts one transaction shape:
+// Paryon's add-collateral transaction (manage with repayAmount 0), with the vault at inputs 4 and 5.
+//
+//   in 0  Paryon price contract (sharePrice)   out 0  price contract, unchanged
+//   in 1  Paryon loan                          out 1  loan, same state, value + topUp
+//   in 2  Paryon loan sidecar                  out 2  loan sidecar, unchanged
+//   in 3  Paryon manage function               out 3  manage function (Paryon pins it)
+//   in 4  vault key UTXO                       out 4  vault key UTXO, unchanged
+//   in 5  vault reserve UTXO                   out 5  vault reserve UTXO, value >= in5 - topUp - maxOverhead
+//                                              out 6  optional keeper reward, BCH only
+//
+// Paryon's contracts enforce some of these rules as well. Backstop checks every rule the
+// borrower relies on itself, so no guarantee depends on Paryon's code catching it first.
+//
+// Units: collateral in satoshis, debt in PUSD cents (2 decimals), price in US cents per BCH.
+// Collateral ratio in basis points = collateral * price * 10000 / (debt * 100_000_000).
+
+contract Backstop(
+    // Borrower's public key hash: the only key that can withdraw from the vault
+    bytes20 ownerPkh,
+    // Token category of the loan key (and loan sidecar): which loan this vault protects
+    bytes32 loanKeyCategory,
+    // Paryon's token category: authenticates the price contract, loan and manage function
+    bytes32 paryonTokenId,
+    // Locking bytecode of Paryon's manage function contract
+    bytes manageLockingBytecode,
+    // A rescue is allowed only while the collateral ratio is below this (e.g. 12500 = 125%)
+    int triggerRatioBps,
+    // A rescue may not lift the collateral ratio above this (e.g. 15000 = 150%)
+    int targetRatioBps,
+    // Most BCH that one rescue may move into the loan
+    int maxTopUpSats,
+    // Most BCH that one rescue may spend on miner fee plus keeper reward
+    int maxOverheadSats,
+    // Minimum age of the reserve UTXO, in blocks, before it can fund a rescue
+    int cooldownBlocks
+) {
+    // Anyone can call this. It moves part of the reserve into the borrower's own loan.
+    function rescue() {
+        if (this.activeInputIndex == 4) {
+            // Key input: the full rule set runs on the reserve input (index 5).
+            // Stops: using the key without the reserve-side checks. Input 5 carries this same
+            // script, so it is either a rescue (all checks below run) or an owner-signed spend.
+            require(tx.inputs[5].lockingBytecode == tx.inputs[4].lockingBytecode, "Key and reserve must come from the same vault");
+        } else {
+            require(this.activeInputIndex == 5, "Vault inputs must be at index 4 and 5");
+
+            // ---- Transaction shape ----
+            // Stops: extra inputs smuggling in other tokens or authority.
+            require(tx.inputs.length == 6, "Rescue must have exactly 6 inputs");
+            // Stops: extra outputs siphoning value or carrying tokens away.
+            require(tx.outputs.length <= 7, "Rescue may have at most 7 outputs");
+
+            bytes vaultBytecode = tx.inputs[5].lockingBytecode;
+            // Stops: pairing this reserve with a key UTXO from somewhere else.
+            require(tx.inputs[4].lockingBytecode == vaultBytecode, "Key must come from this vault");
+            // Stops: running the rescue with some other loan's key.
+            require(tx.inputs[4].tokenCategory == loanKeyCategory + 0x02, "Input 4 must be this loan's minting key");
+            // Stops: key and reserve being swapped between inputs 4 and 5.
+            require(tx.inputs[5].tokenCategory == 0x, "Reserve input must hold no tokens");
+
+            // ---- Cooldown ----
+            // Stops: rescues in quick succession. The node rejects the transaction until the
+            // reserve UTXO is this many blocks old (relative timelock, BIP68).
+            require(this.age >= cooldownBlocks, "Reserve is still in its cooldown");
+
+            // ---- Price contract (input 0) ----
+            // Stops: a fake price. Only Paryon's price contracts hold a mutable Paryon NFT with prefix 0x00.
+            require(tx.inputs[0].tokenCategory == paryonTokenId + 0x01, "Input 0 must be a Paryon price contract");
+            bytes priceState = tx.inputs[0].nftCommitment;
+            require(priceState.split(1)[0] == 0x00, "Input 0 must be a Paryon price contract");
+            // Stops: a migrated price contract leaking tokens or changing state in this transaction.
+            require(tx.outputs[0].lockingBytecode == tx.inputs[0].lockingBytecode, "Price contract must be returned unchanged");
+            require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory, "Price contract must be returned unchanged");
+            require(tx.outputs[0].nftCommitment == priceState, "Price contract must be returned unchanged");
+            require(tx.outputs[0].tokenAmount == 0, "Price contract must be returned unchanged");
+            int price = int(priceState.slice(5, 9));
+            // Stops: a zero or negative price making every ratio look low.
+            require(price > 0, "Price must be positive");
+
+            // ---- Loan (input 1) and its sidecar (input 2) ----
+            // Stops: topping up a loan that is not this borrower's. The sidecar carries the loan-key
+            // category, and Paryon creates it in the output right after its loan.
+            require(tx.inputs[2].tokenCategory == loanKeyCategory, "Input 2 must be this loan's sidecar");
+            require(tx.inputs[1].tokenCategory == paryonTokenId + 0x01, "Input 1 must be a Paryon loan");
+            require(tx.inputs[1].outpointTransactionHash == tx.inputs[2].outpointTransactionHash, "Input 1 must be the loan of this sidecar");
+            require(tx.inputs[2].outpointIndex == tx.inputs[1].outpointIndex + 1, "Input 1 must be the loan of this sidecar");
+            bytes loanState = tx.inputs[1].nftCommitment;
+            require(loanState.split(1)[0] == 0x01, "Input 1 must be a Paryon loan");
+
+            // Stops: moving the loan elsewhere.
+            require(tx.outputs[1].lockingBytecode == tx.inputs[1].lockingBytecode, "Loan must stay in the Paryon loan contract");
+            require(tx.outputs[1].tokenCategory == tx.inputs[1].tokenCategory, "Loan must stay in the Paryon loan contract");
+            // Stops: increasing debt, repaying with someone else's PUSD, or changing the interest manager.
+            // The loan state must be byte-for-byte unchanged.
+            require(tx.outputs[1].nftCommitment == loanState, "Loan state must not change");
+            require(tx.outputs[1].tokenAmount == 0, "Loan must not receive tokens");
+            // Stops: the sidecar being moved or altered.
+            require(tx.outputs[2].lockingBytecode == tx.inputs[2].lockingBytecode, "Loan sidecar must be returned unchanged");
+            require(tx.outputs[2].tokenCategory == tx.inputs[2].tokenCategory, "Loan sidecar must be returned unchanged");
+            require(tx.outputs[2].nftCommitment == tx.inputs[2].nftCommitment, "Loan sidecar must be returned unchanged");
+
+            // ---- Paryon manage function (input 3) ----
+            // Stops: some other loan function (Loan.cash checks only category and commitment length).
+            require(tx.inputs[3].lockingBytecode == manageLockingBytecode, "Input 3 must be Paryon's manage function");
+            require(tx.inputs[3].tokenCategory == paryonTokenId, "Input 3 must be Paryon's manage function");
+            require(tx.inputs[3].nftCommitment == 0x02, "Input 3 must be Paryon's manage function");
+
+            // ---- Top-up amount ----
+            int collateralBefore = tx.inputs[1].value;
+            int collateralAfter = tx.outputs[1].value;
+            int topUp = collateralAfter - collateralBefore;
+            // Stops: withdrawing collateral with the key.
+            require(topUp > 0, "Rescue must add collateral");
+            // Stops: draining the reserve into one rescue.
+            require(topUp <= maxTopUpSats, "Top-up is above the vault's limit");
+
+            // ---- Key comes straight back ----
+            // Stops: stealing the key, or returning it with a changed commitment or capability.
+            require(tx.outputs[4].lockingBytecode == vaultBytecode, "Loan key must return to the vault");
+            require(tx.outputs[4].tokenCategory == tx.inputs[4].tokenCategory, "Loan key must return unchanged");
+            require(tx.outputs[4].nftCommitment == tx.inputs[4].nftCommitment, "Loan key must return unchanged");
+            require(tx.outputs[4].value == tx.inputs[4].value, "Loan key must return unchanged");
+
+            // ---- Reserve comes back, minus the top-up and capped overhead ----
+            // Stops: the remaining reserve going anywhere but the vault.
+            require(tx.outputs[5].lockingBytecode == vaultBytecode, "Remaining reserve must return to the vault");
+            require(tx.outputs[5].tokenCategory == 0x, "Remaining reserve must hold no tokens");
+            // Stops: a keeper taking more than the fee cap.
+            require(tx.outputs[5].value >= tx.inputs[5].value - topUp - maxOverheadSats, "Fee and keeper reward exceed the vault's limit");
+
+            // ---- Optional keeper reward ----
+            // Stops: minting a copy of the loan key (it is a minting NFT) and sending it out.
+            if (tx.outputs.length == 7) {
+                require(tx.outputs[6].tokenCategory == 0x, "Keeper reward must hold no tokens");
+            }
+
+            // ---- Collateral ratio ----
+            int debt = int(loanState.slice(1, 7));
+            int ratioScale = debt * 100_000_000;
+            // Stops: rescuing a loan that is not in danger.
+            require(collateralBefore * price * 10000 < triggerRatioBps * ratioScale, "Loan is not below the trigger ratio");
+            // Stops: overfunding the loan beyond what the borrower asked for.
+            require(collateralAfter * price * 10000 <= targetRatioBps * ratioScale, "Rescue would lift the loan above the target ratio");
+            // Stops: a keeper draining the reserve through many tiny rescues, each paying the overhead.
+            // A rescue must lift the loan out of the trigger zone, unless it uses the full per-rescue
+            // limit or the reserve is used up.
+            bool liftedAboveTrigger = collateralAfter * price * 10000 >= triggerRatioBps * ratioScale;
+            bool usedMaxTopUp = topUp == maxTopUpSats;
+            bool reserveUsedUp = tx.inputs[5].value - topUp <= maxOverheadSats + 2000;
+            require(liftedAboveTrigger || usedMaxTopUp || reserveUsedUp, "Rescue too small: must lift the loan above the trigger");
+        }
+    }
+
+    // The borrower can always take the key and the reserve back, with no other restriction.
+    function ownerSpend(pubkey ownerPubKey, sig ownerSig) {
+        // Stops: anyone but the borrower withdrawing.
+        require(hash160(ownerPubKey) == ownerPkh, "Only the vault owner can withdraw");
+        require(checkSig(ownerSig, ownerPubKey), "Only the vault owner can withdraw");
+    }
+}

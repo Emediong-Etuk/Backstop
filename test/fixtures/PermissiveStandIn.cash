@@ -1,0 +1,11 @@
+pragma cashscript ^0.14.0;
+
+// TEST ONLY. Stands in for a Paryon contract with all of Paryon's checks removed.
+// Used to show that every guarantee Backstop gives is enforced by Backstop itself,
+// not by Paryon happening to reject the same transaction first.
+// `role` only gives each stand-in its own address.
+contract PermissiveStandIn(bytes role) {
+    function spend() {
+        require(role.length > 0);
+    }
+}

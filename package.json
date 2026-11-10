@@ -1,0 +1,21 @@
+{
+  "name": "backstop",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "contracts",
+    "test"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "compile": "npm run compile -w @backstop/contracts",
+    "test": "npm run compile && npm test -w @backstop/test",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.2",
+    "typescript": "^6.0.2"
+  }
+}
