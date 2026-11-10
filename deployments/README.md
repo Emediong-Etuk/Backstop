@@ -1,7 +1,7 @@
 # Deployments
 
 `chipnet.json` describes where the Paryon contracts used by the demo live on chipnet. It is written by
-the chipnet deploy script (Phase 3) and read by the keeper and the web app.
+`npm run demo:deploy` and read by the keeper and the web app.
 
 Format (see `keeper/src/config.ts`):
 

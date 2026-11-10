@@ -5,6 +5,7 @@
   "workspaces": [
     "contracts",
     "keeper",
+    "oracle-demo",
     "test"
   ],
   "engines": {
@@ -14,7 +15,13 @@
     "compile": "npm run compile -w @backstop/contracts",
     "test": "npm run compile && npm test -w @backstop/test",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "keeper": "npm start -w @backstop/keeper --"
+    "keeper": "npm start -w @backstop/keeper --",
+    "demo:keys": "npm run cli -w @backstop/demo -- keys",
+    "demo:deploy": "npm run cli -w @backstop/demo -- deploy",
+    "demo:crash": "npm run cli -w @backstop/demo -- crash",
+    "demo:setup": "npm run cli -w @backstop/demo -- setup",
+    "demo:status": "npm run cli -w @backstop/demo -- status",
+    "demo:withdraw": "npm run cli -w @backstop/demo -- withdraw"
   },
   "devDependencies": {
     "@types/node": "^24.6.2",

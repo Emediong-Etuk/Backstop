@@ -1,0 +1,23 @@
+{
+  "name": "@backstop/demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "DEMO ONLY: demo oracle, chipnet deployment of Paryon's unmodified add-collateral contracts, and demo scripts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "cli": "tsx src/cli.ts"
+  },
+  "dependencies": {
+    "@backstop/contracts": "0.1.0",
+    "@backstop/keeper": "0.1.0",
+    "@bitauth/libauth": "^3.0.0",
+    "@generalprotocols/price-oracle": "4.0.0",
+    "cashscript": "0.14.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.6"
+  }
+}

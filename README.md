@@ -4,7 +4,7 @@ A pre-funded rescue for ParyonUSD loans on Bitcoin Cash. BCH BLAZE 2026 entry.
 
 A borrower moves their loan key and a BCH reserve into a vault once. If BCH falls far enough that the loan nears liquidation, **anyone** can broadcast a rescue that moves part of the reserve into the borrower's own loan as extra collateral. The borrower doesn't need to be online or sign anything. They also don't need to trust whoever sends the rescue: the vault's contract only accepts a correct rescue.
 
-> Status: **Phase 2 of 6**: contract, tests and keeper. Demo oracle, chipnet deployment and web app come next. Research notes: [`docs/PHASE0.md`](docs/PHASE0.md).
+> Status: **Phase 3 of 6**: contract, tests, keeper, demo oracle and chipnet demo scripts. Web app comes next. Research notes: [`docs/PHASE0.md`](docs/PHASE0.md).
 
 ## Run the tests
 
@@ -43,7 +43,65 @@ npm run keeper -- --watch
 
 `--dry-run` prints the rescue it would send (inputs, outputs, ratio before and after, raw hex) and broadcasts nothing. `--watch` checks every 60 seconds and broadcasts rescues. Other options: `--fee-rate`, `--reward-sats`, `--server`, `--deployment`. Set `KEEPER_REWARD_ADDRESS` in `.env` to collect rewards (see `.env.example`).
 
-The keeper reads `deployments/chipnet.json`, which the chipnet deploy script (Phase 3) writes. **Discovery for the demo is the local `keeper/vaults.json` list**, not a ChainGraph query: I could not confirm a chipnet ChainGraph instance. Every vault's rules still come from the chain.
+The keeper reads `deployments/chipnet.json`, which `npm run demo:deploy` writes. **Discovery for the demo is the local `keeper/vaults.json` list**, not a ChainGraph query: I could not confirm a chipnet ChainGraph instance. Every vault's rules still come from the chain.
+
+## Run the demo on chipnet
+
+> **DEMO ORACLE.** On chipnet the price comes from a demo oracle key that we control, so the price can be made to fall on camera. The messages use the real General Protocols format and go through Paryon's real price contract, which checks them with `checkDataSig`. Mainnet would use General Protocols' oracle key (`02d09db0…fd2818`) instead.
+
+These steps need a normal internet connection (Electrum over WebSocket). Run them on your own machine.
+
+1. Create demo keys in `.env` (git ignores it):
+
+   ```bash
+   npm run demo:keys -- --write
+   ```
+
+2. Fund the two addresses it prints from the chipnet faucet at https://chipnet.bch.ninja/: about 1.2 tBCH for the funder and 0.6 tBCH for the borrower.
+
+3. Deploy Paryon's add-collateral contracts with two demo loans (0.5 BCH collateral, $115 debt each, at $300/BCH, so 130%):
+
+   ```bash
+   npm run demo:deploy
+   ```
+
+   This writes `deployments/chipnet.json`. Add `--borrower-address <bchtest:...>` to send the loan keys to a Cashonize wallet instead of the demo borrower.
+
+4. Set up a vault for demo loan 0 with a 0.5 BCH reserve. It rescues below 125%, lifts to at most 150%, with a 1-block cooldown:
+
+   ```bash
+   npm run demo:setup -- --loan 0 --reserve 0.5
+   ```
+
+   Wait for one block (about 10 minutes) so the reserve is past its cooldown.
+
+5. Start the keeper in another terminal:
+
+   ```bash
+   npm run keeper -- --watch --interval 20
+   ```
+
+6. Crash the price. At $265 the loan drops to 115%:
+
+   ```bash
+   npm run demo:crash -- --price 265
+   ```
+
+7. Watch the keeper rescue the loan, then check:
+
+   ```bash
+   npm run demo:status
+   ```
+
+8. Withdraw everything back to the borrower:
+
+   ```bash
+   npm run demo:withdraw
+   ```
+
+Transactions link to https://chipnet.imaginary.cash. The demo deployment is **not Paryon's**: it runs Paryon's unmodified Loan, LoanSidecar, manage and PriceContractGuarded bytecode under our own token categories. Its demo loans are created directly in the deployment transaction rather than through Paryon's `borrow`. Borrowing, the stability pool and liquidation are not deployed. The demo price contract's migration-key category is a hash of a sentence, so no migration key exists for it.
+
+`test/demo.test.ts` runs this whole sequence on the mem-cash node.
 
 ## How it works
 
@@ -102,7 +160,8 @@ The owner can always withdraw the key and the whole reserve with one signature, 
 ```
 contracts/   Backstop.cash, compiled artifact, shared TypeScript helpers (@backstop/contracts)
 keeper/      stateless keeper CLI (@backstop/keeper)
-deployments/ where Paryon's contracts live on chipnet (written in Phase 3)
+oracle-demo/ DEMO ONLY: demo oracle, chipnet deployment and demo scripts (@backstop/demo)
+deployments/ where the demo deployment lives on chipnet (written by demo:deploy)
 test/        Vitest suite on MockNetworkProvider and mem-cash
 docs/        research and design notes
 ```
