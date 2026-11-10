@@ -12,7 +12,7 @@ import { binToHex, decodeTransaction, hexToBin, sha256, utf8ToBin } from '@bitau
 import {
   encodeLoanState, encodePriceState, LOAN_SIDECAR_COMMITMENT, MANAGE_FUNCTION_COMMITMENT, PARYON_DUST, paryonContracts,
 } from '@backstop/contracts';
-import type { Deployment } from '@backstop/keeper';
+import type { Deployment } from '@backstop/contracts';
 import { pickCoins, type DemoWallet } from './wallet.js';
 
 /**

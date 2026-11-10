@@ -1,3 +1,4 @@
+// DEMO / TEST ONLY: a local in-memory chain, used by the tests and by the web app's local preview.
 // A CashScript NetworkProvider backed by @paryonusd/mem-cash: an in-memory node that checks
 // transactions the way BCHN does (including BIP68 relative timelocks, standardness and fees) and
 // answers the Electrum protocol the way Fulcrum does. The keeper talks to it through the same

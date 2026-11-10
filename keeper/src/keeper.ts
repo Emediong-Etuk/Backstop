@@ -6,8 +6,7 @@ import {
   assemble, collateralRatioBps, liquidationPriceCents, paryonUnlockers, planRescue, priceAtRatio, readRescueState, rescueParts,
   type TransactionParts,
 } from '@backstop/contracts';
-import type { Deployment } from './config.js';
-import { deploymentContracts, findRescueUtxos, loadVault, utxoAgeBlocks, type Vault } from './chain.js';
+import { deploymentContracts, findRescueUtxos, loadVault, utxoAgeBlocks, type Deployment, type Vault } from '@backstop/contracts';
 import { describeRescue, formatBch, formatPercent, formatUsd } from './format.js';
 
 export interface KeeperOptions {

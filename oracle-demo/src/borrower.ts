@@ -5,7 +5,7 @@ import {
   assemble, buildSetup, collateralRatioBps, DEFAULT_RULES, liquidationPriceCents, priceAtRatio, readRescueState, setupParts,
   vaultContract, withdrawParts, type BackstopParams,
 } from '@backstop/contracts';
-import { deploymentContracts, findRescueUtxos, loadVault, type Deployment } from '@backstop/keeper';
+import { deploymentContracts, findRescueUtxos, loadVault, type Deployment } from '@backstop/contracts';
 import { pickCoins, type DemoWallet } from './wallet.js';
 
 export interface SetupOptions {

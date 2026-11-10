@@ -4,7 +4,7 @@
 import { TransactionBuilder, type NetworkProvider, type SpendableUtxo } from 'cashscript';
 import { hexToBin } from '@bitauth/libauth';
 import { encodePriceState, PARYON_DUST, parsePriceState } from '@backstop/contracts';
-import { deploymentContracts, type Deployment } from '@backstop/keeper';
+import { deploymentContracts, type Deployment } from '@backstop/contracts';
 import { nextHeartbeatSequence, signDemoPrice } from './oracle.js';
 import { pickCoins, type DemoWallet } from './wallet.js';
 

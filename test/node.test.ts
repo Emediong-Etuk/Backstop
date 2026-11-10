@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { binToHex } from '@bitauth/libauth';
 import { scanOnce, type Deployment } from '@backstop/keeper';
 import { createWorld, DEFAULTS, demoOracle, keeper, MIGRATION_KEY_CATEGORY, movePrice, PARYON_TOKEN_ID, setUpVault } from './harness.js';
-import { MemCashProvider } from './memcash.js';
+import { MemCashProvider } from '@backstop/demo';
 
 const deployment: Deployment = {
   network: 'mock', paryonTokenId: PARYON_TOKEN_ID, oraclePublicKey: binToHex(demoOracle.publicKey), migrationKeyCategory: MIGRATION_KEY_CATEGORY,

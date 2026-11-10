@@ -7,7 +7,7 @@ import { paryonContracts, parseLoanState } from '@backstop/contracts';
 import {
   deployDemo, DEMO_NO_MIGRATION_KEY, nextHeartbeatSequence, publishDemoPrice, setUpDemoVault, signDemoPrice, vaultStatus, walletFromPrivateKey, withdrawDemoVault,
 } from '@backstop/demo';
-import { MemCashProvider } from './memcash.js';
+import { MemCashProvider } from '@backstop/demo';
 
 const BCH = 100_000_000n;
 const wallet = (label: string) => walletFromPrivateKey(sha256.hash(utf8ToBin(`backstop demo test: ${label}`)));

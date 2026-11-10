@@ -1,6 +1,6 @@
 import { binToHex } from '@bitauth/libauth';
 import { collateralRatioBps, SATS_PER_BCH, type RescuePlan, type TransactionParts } from '@backstop/contracts';
-import type { Vault } from './chain.js';
+import type { Vault } from '@backstop/contracts';
 
 export function formatBch(sats: bigint): string {
   const negative = sats < 0n;

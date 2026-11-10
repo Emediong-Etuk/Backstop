@@ -174,13 +174,14 @@ export function setupParts(args: {
   params: BackstopParams;
   keyUtxo: SpendableUtxo;
   fundingUtxos: SpendableUtxo[];
-  ownerSigner: SignatureTemplate;
+  /** Local signer (scripts, tests), or a wallet placeholder unlocker (WalletConnect). */
+  ownerSigner: SignatureTemplate | Unlocker;
   reserveSats: bigint;
   minerFeeSats: bigint;
   changeLockingBytecode: string;
 }): TransactionParts & { opReturn: string[] } {
   const { vault, params, keyUtxo, fundingUtxos, ownerSigner, reserveSats, minerFeeSats } = args;
-  const unlocker = ownerSigner.unlockP2PKH();
+  const unlocker = ownerSigner instanceof SignatureTemplate ? ownerSigner.unlockP2PKH() : ownerSigner;
   const inputs = [keyUtxo, ...fundingUtxos].map((utxo) => ({ utxo, unlocker }));
   const totalIn = [keyUtxo, ...fundingUtxos].reduce((sum, u) => sum + u.satoshis, 0n);
   const change = totalIn - PARYON_DUST - reserveSats - minerFeeSats;
@@ -209,12 +210,15 @@ export function withdrawParts(args: {
   vault: VaultContract;
   key: SpendableUtxo;
   reserve: SpendableUtxo;
-  ownerSigner: SignatureTemplate;
+  /** Local signer, or `{ publicKey, signature }` placeholders for a wallet to fill in (WalletConnect). */
+  ownerSigner: SignatureTemplate | { publicKey: Uint8Array; signature: Uint8Array };
   minerFeeSats: bigint;
   toLockingBytecode: string;
 }): TransactionParts {
   const { vault, key, reserve, ownerSigner, minerFeeSats } = args;
-  const unlocker = vault.unlock.ownerSpend(ownerSigner.publicKey, ownerSigner);
+  const unlocker = ownerSigner instanceof SignatureTemplate
+    ? vault.unlock.ownerSpend(ownerSigner.publicKey, ownerSigner)
+    : vault.unlock.ownerSpend(ownerSigner.publicKey, ownerSigner.signature);
   const to = hexToBin(args.toLockingBytecode);
   return {
     inputs: [{ utxo: key, unlocker }, { utxo: reserve, unlocker }],

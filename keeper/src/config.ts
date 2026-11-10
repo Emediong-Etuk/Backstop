@@ -1,18 +1,7 @@
 // Keeper configuration files. Neither holds anything secret.
 import { readFileSync } from 'node:fs';
 
-/** Where Paryon's contracts live on a network. Written by the chipnet deploy script. */
-export interface Deployment {
-  network: 'chipnet' | 'mainnet' | 'mock';
-  /** Display-order hex. */
-  paryonTokenId: string;
-  /** Public key of the oracle the price contract accepts. On chipnet this is the DEMO oracle. */
-  oraclePublicKey: string;
-  /** Display-order hex; part of the price contract's address. */
-  migrationKeyCategory: string;
-  /** Free-form note shown in logs, e.g. "demo deployment, not Paryon's". */
-  label?: string;
-}
+export type { Deployment } from '@backstop/contracts';
 
 /**
  * Vault discovery for the demo: a list of setup transaction IDs. The keeper reads each setup
