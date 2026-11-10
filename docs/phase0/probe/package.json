@@ -1,0 +1,13 @@
+{
+  "name": "backstop-phase0-probe",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "probe": "cashc Holder.cash -o Holder.json && node probe.mjs"
+  },
+  "dependencies": {
+    "@paryonusd/contracts": "1.1.0",
+    "cashc": "0.14.0",
+    "cashscript": "0.14.0"
+  }
+}
