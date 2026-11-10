@@ -1,13 +1,16 @@
 // Test world: a mock network holding a Paryon loan, the price contract it reads from,
 // and a Backstop vault protecting it.
-import { Contract, MockNetworkProvider, SignatureTemplate, type SpendableUtxo, type TransactionBuilder } from 'cashscript';
+import { Contract, MockNetworkProvider, SignatureTemplate, type NetworkProvider, type SpendableUtxo, type TransactionBuilder, type Utxo } from 'cashscript';
 import { compileFile } from 'cashc';
 import { binToHex, encodePrivateKeyWif, hash160, hexToBin, secp256k1, sha256, utf8ToBin } from '@bitauth/libauth';
 import { OracleData } from '@generalprotocols/price-oracle';
 import { expect } from 'vitest';
 import {
   assemble,
+  buildSetup,
   DEFAULT_RULES,
+  parsePriceState,
+  setupParts,
   encodeLoanState,
   encodePriceState,
   LOAN_SIDECAR_COMMITMENT,
@@ -67,7 +70,12 @@ export interface WorldOptions {
   rules?: Partial<Omit<BackstopParams, 'ownerPkh' | 'loanKeyCategory' | 'paryonTokenId' | 'manageLockingBytecode'>>;
   /** Start before setup: the loan key and the reserve BCH are still in the borrower's wallet. */
   beforeSetup?: boolean;
+  /** Network to use: CashScript's MockNetworkProvider (default) or the mem-cash node. */
+  provider?: SeedableProvider;
 }
+
+/** A network provider the test world can seed with UTXOs. */
+export type SeedableProvider = NetworkProvider & { addUtxo(lockingBytecode: string, utxo: Utxo): SpendableUtxo };
 
 // Default loan: 1 BCH collateral, $230 debt. At $300/BCH that is 130% (safe, trigger is 125%).
 // At $270/BCH it is 117%: below the trigger but not yet liquidatable (110%).
@@ -87,7 +95,7 @@ const freshTxid = () => binToHex(sha256.hash(utf8ToBin(`backstop test tx ${++txC
 
 export function createWorld(options: WorldOptions = {}) {
   const mode = options.mode ?? 'paryon';
-  const provider = new MockNetworkProvider();
+  const provider: SeedableProvider = options.provider ?? new MockNetworkProvider();
 
   const paryon = paryonContracts(provider, { oraclePublicKey: binToHex(demoOracle.publicKey), migrationKeyCategory: MIGRATION_KEY_CATEGORY });
   const standIn = (role: string) => new Contract(standInArtifact, [binToHex(utf8ToBin(role))], { provider, contractType: 'p2sh32' });
@@ -196,6 +204,29 @@ export function track(world: World, txid: string, parts: TransactionParts, names
     const lockingBytecode = binToHex(out.to);
     world.utxos[name] = { txid, vout, satoshis: out.amount, token: out.token, lockingBytecode };
   });
+}
+
+/** Sends the setup transaction for a `beforeSetup` world and points it at the new vault UTXOs. */
+export async function setUpVault(world: World): Promise<string> {
+  const parts = setupParts({
+    vault: world.vault, params: world.params, keyUtxo: world.utxos.key, fundingUtxos: [world.utxos.reserve],
+    ownerSigner: owner.signer, reserveSats: world.utxos.reserve.satoshis - 10_000n, minerFeeSats: 1_500n, changeLockingBytecode: owner.lockingBytecode,
+  });
+  const { txid } = await buildSetup(world.provider, parts).send();
+  track(world, txid, parts, ['key', 'reserve']);
+  return txid;
+}
+
+/** Records a new price in Paryon's price contract through a signed demo-oracle message. */
+export async function movePrice(world: World, priceCents: bigint) {
+  // Read the price contract from the chain: other transactions (like a rescue) recreate it.
+  const onChain = await world.provider.getUtxosForLockingBytecode(world.contracts.price.lockingBytecode);
+  world.utxos.price = onChain.find((u) => u.token?.category === PARYON_TOKEN_ID) ?? world.utxos.price;
+  const current = parsePriceState(world.utxos.price.token!.nft!.commitment);
+  const sequence = current.sequence + 10n; // a heartbeat message, which the price contract always accepts
+  const update = priceUpdateParts(world, await signedPriceMessage({ priceCents, dataSequence: sequence }), { sequence, priceCents });
+  const { txid } = await world.build(update).send();
+  track(world, txid, update, ['price']);
 }
 
 /** A price message in the General Protocols oracle format, signed by `signer`. */

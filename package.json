@@ -4,6 +4,7 @@
   "type": "module",
   "workspaces": [
     "contracts",
+    "keeper",
     "test"
   ],
   "engines": {
@@ -12,7 +13,8 @@
   "scripts": {
     "compile": "npm run compile -w @backstop/contracts",
     "test": "npm run compile && npm test -w @backstop/test",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "keeper": "npm start -w @backstop/keeper --"
   },
   "devDependencies": {
     "@types/node": "^24.6.2",

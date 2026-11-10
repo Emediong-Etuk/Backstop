@@ -121,6 +121,8 @@ Also useful: `@paryonusd/mem-cash@0.1.0`, an "in-memory Bitcoin Cash node with a
 
 ## Q7. Oracle message layout, price unit, public key
 
+> **Update (Phase 2):** verified against the live oracle API once the session's network allowed it. The latest message `53a3f36a47501d002a501d00de590000` decodes to timestamp 2026-11-10 23:05:55 UTC, message sequence 1921095, data sequence 1921066, price 23006, so $230.06 per BCH. Its signature verifies as Schnorr over `sha256(message)` under `02d09db0…fd2818`, which is the check `checkDataSig` performs. Metadata messages from the same key: `-1 OPERATOR_NAME` "General Protocols", `-6 ATTESTATION_SCALING` "100", `-53` "US Dollar", `-57` "BCH". **Price unit confirmed: US cents per BCH.**
+
 From the spec (`priceoracle/specification README.md:97-109`), "All numbers are little-endian signed integers":
 
 | Bytes | Field |

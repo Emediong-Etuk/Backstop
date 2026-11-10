@@ -11,5 +11,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["contracts/src", "contracts/artifacts", "test"]
+  "include": ["contracts/src", "contracts/artifacts", "keeper/src", "test"]
 }

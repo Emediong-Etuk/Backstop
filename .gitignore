@@ -2,3 +2,6 @@ node_modules/
 .env
 *.local
 docs/phase0/probe/node_modules/
+
+# keeper vault list for a local run
+keeper/vaults.json
