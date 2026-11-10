@@ -187,8 +187,8 @@ export function setupParts(args: {
   if (change < 0n) throw new Error('not enough BCH for the reserve and fee');
 
   const outputs: Output[] = [
-    { to: vault.tokenAddress, amount: PARYON_DUST, token: keyUtxo.token },
-    { to: vault.address, amount: reserveSats },
+    { to: hexToBin(vault.lockingBytecode), amount: PARYON_DUST, token: keyUtxo.token },
+    { to: hexToBin(vault.lockingBytecode), amount: reserveSats },
   ];
   if (change >= 546n) outputs.push({ to: hexToBin(args.changeLockingBytecode), amount: change });
   // The OP_RETURN goes between the vault outputs and the change; see buildSetup.

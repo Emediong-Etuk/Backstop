@@ -2,7 +2,8 @@
 // and a Backstop vault protecting it.
 import { Contract, MockNetworkProvider, SignatureTemplate, type SpendableUtxo, type TransactionBuilder } from 'cashscript';
 import { compileFile } from 'cashc';
-import { binToHex, hash160, secp256k1, sha256, utf8ToBin } from '@bitauth/libauth';
+import { binToHex, encodePrivateKeyWif, hash160, hexToBin, secp256k1, sha256, utf8ToBin } from '@bitauth/libauth';
+import { OracleData } from '@generalprotocols/price-oracle';
 import { expect } from 'vitest';
 import {
   assemble,
@@ -64,6 +65,8 @@ export interface WorldOptions {
   debtCents?: bigint;
   reserveSats?: bigint;
   rules?: Partial<Omit<BackstopParams, 'ownerPkh' | 'loanKeyCategory' | 'paryonTokenId' | 'manageLockingBytecode'>>;
+  /** Start before setup: the loan key and the reserve BCH are still in the borrower's wallet. */
+  beforeSetup?: boolean;
 }
 
 // Default loan: 1 BCH collateral, $230 debt. At $300/BCH that is 130% (safe, trigger is 125%).
@@ -88,9 +91,10 @@ export function createWorld(options: WorldOptions = {}) {
 
   const paryon = paryonContracts(provider, { oraclePublicKey: binToHex(demoOracle.publicKey), migrationKeyCategory: MIGRATION_KEY_CATEGORY });
   const standIn = (role: string) => new Contract(standInArtifact, [binToHex(utf8ToBin(role))], { provider, contractType: 'p2sh32' });
-  const contracts = mode === 'paryon'
-    ? paryon
-    : { price: standIn('price'), loan: standIn('loan'), sidecar: standIn('sidecar'), manage: standIn('manage') };
+  const standIns = mode === 'standIn'
+    ? { price: standIn('price'), loan: standIn('loan'), sidecar: standIn('sidecar'), manage: standIn('manage') }
+    : undefined;
+  const contracts = standIns ?? paryon;
 
   const params: BackstopParams = {
     ownerPkh: owner.pkh,
@@ -137,16 +141,19 @@ export function createWorld(options: WorldOptions = {}) {
       txid: freshTxid(), vout: 0, satoshis: PARYON_DUST,
       token: { category: PARYON_TOKEN_ID, amount: 0n, nft: { capability: 'none', commitment: MANAGE_FUNCTION_COMMITMENT } },
     }),
-    key: add(vault.lockingBytecode, {
+    key: add(options.beforeSetup ? owner.lockingBytecode : vault.lockingBytecode, {
       txid: freshTxid(), vout: 0, satoshis: PARYON_DUST,
       token: { category: LOAN_KEY_CATEGORY, amount: 0n, nft: { capability: 'minting', commitment: '' } },
     }),
-    reserve: add(vault.lockingBytecode, { txid: freshTxid(), vout: 1, satoshis: options.reserveSats ?? DEFAULTS.reserveSats }),
+    // Before setup this is the wallet coin that will fund the reserve (reserve + 10000 sats for fees).
+    reserve: options.beforeSetup
+      ? add(owner.lockingBytecode, { txid: freshTxid(), vout: 1, satoshis: (options.reserveSats ?? DEFAULTS.reserveSats) + 10_000n })
+      : add(vault.lockingBytecode, { txid: freshTxid(), vout: 1, satoshis: options.reserveSats ?? DEFAULTS.reserveSats }),
   };
 
-  const unlockers = (): ParyonUnlockers => mode === 'paryon'
-    ? paryonUnlockers(paryon, utxos.loan)
-    : { price: contracts.price.unlock.spend(), loan: contracts.loan.unlock.spend(), sidecar: contracts.sidecar.unlock.spend(), manage: contracts.manage.unlock.spend() };
+  const unlockers = (): ParyonUnlockers => standIns
+    ? { price: standIns.price.unlock.spend(), loan: standIns.loan.unlock.spend(), sidecar: standIns.sidecar.unlock.spend(), manage: standIns.manage.unlock.spend() }
+    : paryonUnlockers(paryon, utxos.loan);
 
   /** The top-up a well-behaved keeper would choose right now. */
   function plannedTopUp(overheadSats = DEFAULTS.minerFeeSats + DEFAULTS.keeperRewardSats): bigint {
@@ -179,6 +186,45 @@ export function createWorld(options: WorldOptions = {}) {
 }
 
 export type World = ReturnType<typeof createWorld>;
+
+/** Points the world's UTXOs at outputs of a transaction that was just sent. */
+export function track(world: World, txid: string, parts: TransactionParts, names: Array<keyof RescueUtxos | undefined>) {
+  names.forEach((name, vout) => {
+    if (!name) return;
+    const out = parts.outputs[vout];
+    if (typeof out.to === 'string') throw new Error('track: outputs must use locking bytecode, not an address');
+    const lockingBytecode = binToHex(out.to);
+    world.utxos[name] = { txid, vout, satoshis: out.amount, token: out.token, lockingBytecode };
+  });
+}
+
+/** A price message in the General Protocols oracle format, signed by `signer`. */
+export async function signedPriceMessage(args: { priceCents: bigint; dataSequence: bigint; signer?: ReturnType<typeof testKey>; timestamp?: number }) {
+  const signer = args.signer ?? demoOracle;
+  const dataSequence = Number(args.dataSequence);
+  const message = await OracleData.createPriceMessage(args.timestamp ?? 1_794_000_000, dataSequence + 7, dataSequence, Number(args.priceCents));
+  const signature = await OracleData.signMessage(message, encodePrivateKeyWif(signer.privateKey, 'testnet'));
+  return { message, signature };
+}
+
+/**
+ * Updates Paryon's price contract with a signed oracle message (PriceContract.updatePrice).
+ * Anyone can do this; here the keeper pays the fee from its own wallet coin.
+ */
+export function priceUpdateParts(world: World, signed: { message: Uint8Array; signature: Uint8Array }, newState: { sequence: bigint; priceCents: bigint }): TransactionParts {
+  const feeCoin = world.addUtxo(keeper.lockingBytecode, { vout: 0, satoshis: 10_000n });
+  const price = world.utxos.price;
+  return {
+    inputs: [
+      { utxo: price, unlocker: world.paryon.price.unlock.updatePrice(signed.message, signed.signature) },
+      { utxo: feeCoin, unlocker: keeper.signer.unlockP2PKH() },
+    ],
+    outputs: [
+      { to: hexToBin(price.lockingBytecode), amount: PARYON_DUST, token: { ...price.token!, nft: { capability: 'mutable', commitment: encodePriceState(newState) } } },
+      { to: hexToBin(keeper.lockingBytecode), amount: 8_000n },
+    ],
+  };
+}
 
 /**
  * Asserts that a transaction is rejected, and by which rule.

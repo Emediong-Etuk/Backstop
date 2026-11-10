@@ -8,7 +8,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "compile": "cashc Backstop.cash -f ts -o artifacts/Backstop.artifact.ts && cashc Backstop.cash -s"
+    "compile": "node scripts/compile.mjs"
   },
   "dependencies": {
     "@bitauth/libauth": "^3.0.0",

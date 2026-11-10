@@ -7,23 +7,13 @@
 // so no guarantee depends on Paryon's code happening to reject the same transaction first.
 import { describe, expect, it } from 'vitest';
 import { hexToBin } from '@bitauth/libauth';
-import { collateralRatioBps, encodeLoanState, parseLoanState, readRescueState, type TransactionParts } from '@backstop/contracts';
-import { BCH, createWorld, DEFAULTS, dollars, expectAccepted, expectRejected, keeper, LOAN_KEY_CATEGORY, PARYON_TOKEN_ID, stranger, type Mode, type World } from './harness.js';
+import { collateralRatioBps, encodeLoanState, parseLoanState, readRescueState } from '@backstop/contracts';
+import { BCH, createWorld, track, DEFAULTS, dollars, expectAccepted, expectRejected, keeper, LOAN_KEY_CATEGORY, PARYON_TOKEN_ID, stranger, type Mode } from './harness.js';
 
 const MODES: Array<[string, Mode]> = [
   ["against Paryon's real contracts", 'paryon'],
   ["with Paryon's own checks removed", 'standIn'],
 ];
-
-/** Moves the world forward to the outputs of a rescue that was just sent. */
-function advance(world: World, txid: string, parts: TransactionParts) {
-  const names = ['price', 'loan', 'sidecar', 'manage', 'key', 'reserve'] as const;
-  names.forEach((name, vout) => {
-    const out = parts.outputs[vout];
-    const lockingBytecode = typeof out.to === 'string' ? out.to : Buffer.from(out.to).toString('hex');
-    world.utxos[name] = { txid, vout, satoshis: out.amount, token: out.token, lockingBytecode };
-  });
-}
 
 describe.each(MODES)('A rescue %s', (_label, mode) => {
   describe('does its job', () => {
@@ -82,7 +72,7 @@ describe.each(MODES)('A rescue %s', (_label, mode) => {
       const world = createWorld({ mode });
       const first = world.rescue();
       const { txid } = await expectAccepted(world, first);
-      advance(world, txid, first);
+      track(world, txid, first, ['price', 'loan', 'sidecar', 'manage', 'key', 'reserve']);
       expectRejected(world, world.rescue({ topUpSats: BCH / 20n }), /Loan is not below the trigger ratio/);
     });
 
@@ -146,6 +136,14 @@ describe.each(MODES)('A rescue %s', (_label, mode) => {
       // Paryon accepts this; only Backstop stops it.
       parts.outputs[6] = { to: hexToBin(keeper.lockingBytecode), amount: 1_000n, token: { category: LOAN_KEY_CATEGORY, amount: 0n, nft: { capability: 'minting', commitment: '' } } };
       expectRejected(world, parts, /Keeper reward must hold no tokens/);
+    });
+
+    it('a keeper hiding a copy of the loan key in the manage function output', () => {
+      const world = createWorld({ mode });
+      const parts = world.rescue();
+      parts.outputs[3] = { to: hexToBin(keeper.lockingBytecode), amount: 1_000n, token: { category: LOAN_KEY_CATEGORY, amount: 0n, nft: { capability: 'minting', commitment: '' } } };
+      // Paryon also recreates its manage function there (manage.cash:125).
+      expectRejected(world, parts, /Manage function must be returned unchanged/, /at input 3 in contract manageLoan\.cash at line 125/);
     });
 
     it('a keeper withdrawing collateral with the key', () => {

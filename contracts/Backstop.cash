@@ -14,7 +14,7 @@ pragma cashscript ^0.14.0;
 //   in 0  Paryon price contract (sharePrice)   out 0  price contract, unchanged
 //   in 1  Paryon loan                          out 1  loan, same state, value + topUp
 //   in 2  Paryon loan sidecar                  out 2  loan sidecar, unchanged
-//   in 3  Paryon manage function               out 3  manage function (Paryon pins it)
+//   in 3  Paryon manage function               out 3  manage function, unchanged
 //   in 4  vault key UTXO                       out 4  vault key UTXO, unchanged
 //   in 5  vault reserve UTXO                   out 5  vault reserve UTXO, value >= in5 - topUp - maxOverhead
 //                                              out 6  optional keeper reward, BCH only
@@ -115,6 +115,10 @@ contract Backstop(
             require(tx.inputs[3].lockingBytecode == manageLockingBytecode, "Input 3 must be Paryon's manage function");
             require(tx.inputs[3].tokenCategory == paryonTokenId, "Input 3 must be Paryon's manage function");
             require(tx.inputs[3].nftCommitment == 0x02, "Input 3 must be Paryon's manage function");
+            // Stops: output 3 carrying a copy of the loan key instead of the manage function NFT.
+            require(tx.outputs[3].lockingBytecode == manageLockingBytecode, "Manage function must be returned unchanged");
+            require(tx.outputs[3].tokenCategory == tx.inputs[3].tokenCategory, "Manage function must be returned unchanged");
+            require(tx.outputs[3].nftCommitment == 0x02, "Manage function must be returned unchanged");
 
             // ---- Top-up amount ----
             int collateralBefore = tx.inputs[1].value;
