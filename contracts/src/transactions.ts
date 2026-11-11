@@ -174,15 +174,20 @@ export function setupParts(args: {
   params: BackstopParams;
   keyUtxo: SpendableUtxo;
   fundingUtxos: SpendableUtxo[];
-  /** Local signer (scripts, tests), or a wallet placeholder unlocker (WalletConnect). */
-  ownerSigner: SignatureTemplate | Unlocker;
+  /**
+   * Local signer (scripts, tests), a wallet placeholder unlocker (WalletConnect), or one per coin
+   * for HD wallets whose coins sit at different addresses (WizardConnect).
+   */
+  ownerSigner: SignatureTemplate | Unlocker | ((utxo: SpendableUtxo) => Unlocker);
   reserveSats: bigint;
   minerFeeSats: bigint;
   changeLockingBytecode: string;
 }): TransactionParts & { opReturn: string[] } {
   const { vault, params, keyUtxo, fundingUtxos, ownerSigner, reserveSats, minerFeeSats } = args;
-  const unlocker = ownerSigner instanceof SignatureTemplate ? ownerSigner.unlockP2PKH() : ownerSigner;
-  const inputs = [keyUtxo, ...fundingUtxos].map((utxo) => ({ utxo, unlocker }));
+  const unlockerFor = (utxo: SpendableUtxo): Unlocker => ownerSigner instanceof SignatureTemplate
+    ? ownerSigner.unlockP2PKH()
+    : typeof ownerSigner === 'function' ? ownerSigner(utxo) : ownerSigner;
+  const inputs = [keyUtxo, ...fundingUtxos].map((utxo) => ({ utxo, unlocker: unlockerFor(utxo) }));
   const totalIn = [keyUtxo, ...fundingUtxos].reduce((sum, u) => sum + u.satoshis, 0n);
   const change = totalIn - PARYON_DUST - reserveSats - minerFeeSats;
   if (change < 0n) throw new Error('not enough BCH for the reserve and fee');
@@ -225,6 +230,44 @@ export function withdrawParts(args: {
     outputs: [
       { to, amount: key.satoshis, token: key.token },
       { to, amount: reserve.satoshis - minerFeeSats },
+    ],
+  };
+}
+
+/**
+ * Withdraw everything by co-spending one of the owner's own wallet coins (ownerWithdraw).
+ * The wallet signs only its own coin, so this works with any wallet, including WizardConnect.
+ * inputs: 0 vault key, 1 vault reserve, 2 the owner's coin
+ * outputs: 0 loan key to the owner, 1 reserve + coin - fee to the owner (both to the owner's
+ * P2PKH address, which the covenant requires).
+ */
+export function withdrawWithWalletCoinParts(args: {
+  vault: VaultContract;
+  params: BackstopParams;
+  key: SpendableUtxo;
+  reserve: SpendableUtxo;
+  /** A BCH coin at the owner's P2PKH address (the address whose hash is params.ownerPkh). */
+  walletCoin: SpendableUtxo;
+  /** Signs the wallet coin: a local signer, or a wallet placeholder unlocker. */
+  walletSigner: SignatureTemplate | Unlocker;
+  minerFeeSats: bigint;
+}): TransactionParts {
+  const { vault, params, key, reserve, walletCoin, walletSigner, minerFeeSats } = args;
+  const ownerLock = `76a914${params.ownerPkh}88ac`;
+  if (walletCoin.lockingBytecode !== ownerLock) throw new Error("The wallet coin must be at the vault owner's address");
+  if (walletCoin.token) throw new Error('The wallet coin must hold BCH only');
+  if (minerFeeSats > params.maxOverheadSats) throw new Error("The fee is above the vault's limit");
+  const unlocker = vault.unlock.ownerWithdraw(2n);
+  const to = hexToBin(ownerLock);
+  return {
+    inputs: [
+      { utxo: key, unlocker },
+      { utxo: reserve, unlocker },
+      { utxo: walletCoin, unlocker: walletSigner instanceof SignatureTemplate ? walletSigner.unlockP2PKH() : walletSigner },
+    ],
+    outputs: [
+      { to, amount: key.satoshis, token: key.token },
+      { to, amount: reserve.satoshis + walletCoin.satoshis - minerFeeSats },
     ],
   };
 }

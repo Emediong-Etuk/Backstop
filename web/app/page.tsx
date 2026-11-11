@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { connectChipnet, isPreviewMode, NoDeploymentError, type Chain } from '../lib/chain';
 import { protectLoan, readPosition, withdrawEverything, type Position, type ProtectionChoices } from '../lib/actions';
 import { restoreWalletConnect } from '../lib/walletconnect';
+import { restoreWizardConnect } from '../lib/wizardconnect';
 import type { WalletSession } from '../lib/wallet';
 import type { PreviewControls } from '../lib/preview';
 import { bch, usd, shortId } from '../lib/format';
@@ -33,8 +34,10 @@ export default function Home() {
           setPreview(started.controls);
           return;
         }
-        setChain(await connectChipnet());
-        const restored = await restoreWalletConnect().catch(() => undefined);
+        const chipnet = await connectChipnet();
+        setChain(chipnet);
+        const restored = await restoreWalletConnect().catch(() => undefined)
+          ?? await restoreWizardConnect(chipnet.provider, { prefix: 'bchtest' }).catch(() => undefined);
         if (restored) setWallet(restored);
       } catch (e) {
         setChainError(e instanceof NoDeploymentError
@@ -98,7 +101,7 @@ export default function Home() {
         <div className="actions">
           {position && <span className="pill num" title={chain?.kind === 'preview' ? 'Local preview price' : 'Price from the demo oracle on chipnet'}>BCH {usd(position.priceCents)}{chain?.kind === 'chipnet' ? ' · demo price feed' : ''}</span>}
           <span className="pill warn">{chain?.kind === 'preview' ? 'Local preview' : 'Chipnet test network'}</span>
-          {wallet && wallet.kind === 'walletconnect' && (
+          {wallet && wallet.kind !== 'preview' && (
             <button className="link small" onClick={async () => { await wallet.disconnect(); setWallet(undefined); setPosition(undefined); }}>
               Disconnect {shortId(wallet.address.split(':')[1] ?? wallet.address)}
             </button>
@@ -120,7 +123,7 @@ export default function Home() {
         </p>
       )}
 
-      {!wallet && chain && <ConnectScreen onConnected={setWallet} />}
+      {!wallet && chain && <ConnectScreen chain={chain} onConnected={setWallet} />}
       {wallet && !position && !readError && <p className="muted">Reading your loan from the chain…</p>}
 
       {wallet && position && activeVault && (

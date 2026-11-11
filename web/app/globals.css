@@ -108,6 +108,8 @@ button, .button {
   min-height: 44px;
 }
 button:disabled { opacity: 0.55; cursor: not-allowed; }
+a.button { display: inline-flex; align-items: center; text-decoration: none; }
+a.button.secondary { background: var(--surface); color: var(--text); border-color: var(--border); }
 button.secondary { background: var(--surface); color: var(--text); border-color: var(--border); }
 button.danger { background: var(--danger); color: #fff; }
 button.link { background: none; color: var(--accent); padding: 4px 0; min-height: 0; font-weight: 500; }

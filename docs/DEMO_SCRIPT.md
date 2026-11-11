@@ -96,4 +96,5 @@ Click **Withdraw everything**, confirm, approve in Cashonize.
 
 - **Chipnet or WalletConnect is down:** open `http://localhost:3000/?preview` and use its buttons (*Price to $265*, *Run a keeper*). It is labelled as a local preview on screen.
 - **The keeper says "reserve is in its cooldown":** wait for the next block.
+- **Withdraw says your wallet needs a little BCH at the vault owner's address:** send about 0.0001 BCH to the address it shows (it is the address that held the loan key), then withdraw again.
 - **The keeper says "rescue would be too small":** the price is too close to the trigger. Crash a bit lower, e.g. `--price 255`.

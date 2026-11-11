@@ -24,7 +24,7 @@ npm install
 npm test
 ```
 
-`npm test` compiles the covenant and runs 87 tests. They use **Paryon's real compiled contracts** (`@paryonusd/contracts@1.1.0`), on two networks:
+`npm test` compiles the covenant and runs 95 tests. They use **Paryon's real compiled contracts** (`@paryonusd/contracts@1.1.0`), on two networks:
 
 - CashScript's mock network;
 - `@paryonusd/mem-cash`, an in-memory node that checks relative timelocks, standardness and fees the way BCHN does.
@@ -67,7 +67,7 @@ The rescue reads the price from Paryon's price contract at input 0. That contrac
 | **Keeper** (anyone) | Broadcast a rescue while the loan is below the trigger; take a reward within the fee cap | Steal or copy the loan key, withdraw collateral, raise debt, change the interest manager, top up another loan, overfund past the target, drain the reserve with tiny rescues, rescue before the cooldown. All by `Backstop.cash` `require`s; see [ARCHITECTURE.md](docs/ARCHITECTURE.md#every-guarantee-is-a-require) |
 | **Web app / frontend** | Build transactions for the wallet to sign | Move funds without the borrower's signature. A malicious frontend could ask the borrower to sign a bad setup or withdraw, like any dapp; once funds are in the vault, the covenant decides. The site is static, holds no keys and stores nothing. |
 | **Borrower** | Withdraw the key and the whole reserve at any time with one signature | — |
-| **Anyone else** | Nothing beyond what a keeper can do | Withdraw from the vault (`ownerSpend` checks the owner's key hash and signature) |
+| **Anyone else** | Nothing beyond what a keeper can do | Withdraw from the vault (`ownerSpend` checks the owner's key hash and signature; `ownerWithdraw` needs one of the owner's own coins, signed by the owner, and pays only the owner's address) |
 | **Oracle** | Sign prices. A wrong price triggers (or withholds) a rescue, exactly as it would trigger (or withhold) a liquidation | Move funds anywhere but into the borrower's own loan |
 | **Paryon team** (migration key) | Migrate the price contract code, as for every Paryon user | Take vault funds; Backstop pins the price contract's output unchanged |
 | **Miners** | Delay or reorder transactions | Change what a rescue may do |
@@ -85,8 +85,8 @@ Residual risks:
 - **The price on chipnet comes from a DEMO oracle key** that we control, so the price can fall on camera. The messages use the real General Protocols format and go through Paryon's real price contract and `checkDataSig`. On mainnet the price contract uses General Protocols' key `02d09db08af1ff4e8453919cc866a4be427d7bfe18f2c05e5444c196fcf6fd2818`. The web app labels the demo price feed.
 - **Keeper discovery reads setup transaction IDs from `keeper/vaults.json`**, not a ChainGraph query. I could not confirm a chipnet ChainGraph instance. Each vault's rules still come from its on-chain setup OP_RETURN.
 - **Not yet run on chipnet itself.** The development sandbox could not reach chipnet. Everything was exercised on the mock network and on mem-cash, including the full demo sequence (`test/demo.test.ts`) and the web app in a browser (`npm run web:e2e`).
-- **WalletConnect signing with Cashonize is untested.** Withdraw relies on the wallet filling a placeholder signature on a contract input, which is CashScript's documented pattern.
-- **WizardConnect is not supported yet.** It needs xpub address derivation; it reuses the same signing request.
+- **WalletConnect signing with Cashonize is untested.** Setup and withdraw both ask the wallet to sign only its own coins: withdraw uses `ownerWithdraw`, so no placeholder signatures are involved.
+- **WizardConnect is tested against the WizardConnect libraries, not a real wallet app.** `test/wizardconnect.test.ts` pairs the web app's code with `@wizardconnect/wallet`'s real connection manager over a local Nostr relay and runs setup, rescue and withdraw. The test wallet signs the way the protocol requires, but no shipping WizardConnect wallet has been tried yet.
 - **The XO template is checked offline only.** XO's own parser and compiler show it produces Backstop's and Paryon's exact bytecode (`test/xo.test.ts`), but it has not been run in the XO engine or debug tool; see [`xo/README.md`](xo/README.md).
 - **One loan per vault.** Topping up the reserve means withdrawing and setting up again.
 
@@ -158,9 +158,9 @@ The keeper is stateless. It needs no private key and no funds. `--dry-run` print
 
 ## Web app
 
-A static Next.js site (`web/`), with three screens:
+A static Next.js site (`web/`), with three screens. With WizardConnect, the app reads the wallet's receive and change addresses from its xpubs and finds the used ones from chain history; it then tells the wallet which key signs each input.
 
-- **Connect:** WalletConnect, chain `bch:bchtest`.
+- **Connect:** WizardConnect (HD wallets, no setup needed) or WalletConnect (chain `bch:bchtest`, for wallets such as Cashonize).
 - **Set up:** finds the loan whose key is in the wallet, shows its health and liquidation price, and explains what a rescue will do. One signature.
 - **Status:** reserve, rescue and liquidation prices, rescue history from the chain, and *Withdraw everything*.
 
@@ -190,3 +190,5 @@ docs/         research, architecture, demo script; docs/phase0/probe is the comp
 ```
 
 No private keys are committed. Keys live in `.env`; see `.env.example`.
+
+WizardConnect support uses `@wizardconnect/core` and `@wizardconnect/dapp` (LGPL-3.0) as unmodified npm dependencies.

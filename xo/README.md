@@ -8,7 +8,7 @@
 |---|---|---|
 | `protectLoan` | owner (borrower) | The loan key and a reserve go into the vault. An OP_RETURN publishes the vault's rules. Composable: the wallet adds funding coins and change. |
 | `rescue` | keeper (anyone) | Paryon's add-collateral transaction. Inputs 0–3 are Paryon's price contract, loan, sidecar and manage function; inputs 4–5 are the vault. Outputs return everything unchanged except the loan (+ top-up), the reserve (− top-up − fee − reward) and the keeper's reward. No keys needed. |
-| `withdraw` | owner | Both vault UTXOs back to the owner, signed with `ownerKey` through `ownerSpend`. |
+| `withdraw` | owner | Both vault UTXOs back to the owner, signed with `ownerKey` through `ownerSpend`. (The contract's other owner path, `ownerWithdraw`, which the web app uses, is not in the template.) |
 
 The `vault` locking script is P2SH32 of CashScript's exact redeem script: constructor arguments, then the Backstop bytecode. Paryon's four contracts appear as P2SH32 locking scripts built from their unmodified bytecode in `@paryonusd/contracts@1.1.0`.
 

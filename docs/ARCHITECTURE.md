@@ -65,12 +65,26 @@ in 5  vault reserve UTXO    rescue()         out 5  vault reserve, >= in5 - topU
 
 ### 3. Withdraw: one wallet signature
 
+There are two ways out, and both need only the borrower:
+
 ```
-in   vault key UTXO      ownerSpend(pubkey, sig)    out 0  loan key to the wallet
-in   vault reserve UTXO  ownerSpend(pubkey, sig)    out 1  reserve to the wallet
+ownerSpend (signature inside the contract; scripts and wallets that support it)
+in   vault key UTXO      ownerSpend(pubkey, sig)    out 0  loan key to the owner
+in   vault reserve UTXO  ownerSpend(pubkey, sig)    out 1  reserve to the owner
+
+ownerWithdraw (the web app; works with every wallet, WizardConnect included)
+in 0 vault key UTXO      ownerWithdraw(2)           out 0  loan key to the owner's address
+in 1 vault reserve UTXO  ownerWithdraw(2)           out 1  reserve + coin - fee to the owner's address
+in 2 one of the owner's own coins (P2PKH), signed by the wallet
 ```
 
-`ownerSpend` checks the key hash and the signature, nothing else (lines 172–173). The owner can always leave.
+`ownerSpend` checks the key hash and the signature, nothing else (lines 172–173).
+
+`ownerWithdraw` exists because WizardConnect wallets sign only their own coins: the protocol carries no contract details and has no way to put a signature inside a contract's unlocking script. Instead the owner spends one of their own coins in the same transaction. Its signature (SIGHASH_ALL) commits to the whole transaction, and the contract checks the coin is at the owner's address (line 183). Two further rules stop a stray owner signature, such as one made with ANYONECANPAY for something else, from being misused:
+- every output must pay the owner's own address (lines 187–191);
+- the fee is capped at `maxOverheadSats` (lines 195–204).
+
+The owner can always leave.
 
 ### On chipnet
 
@@ -116,7 +130,8 @@ So none of these depends on Paryon catching the same mistake. Deleting a `requir
 | rescue a loan that is not in danger, or replay a rescue | 156 | a rescue while the loan is not in danger; a second rescue at the same price once the loan is back above the trigger (replay) |
 | overfund the loan | 158 | a top-up that lifts the loan above the target |
 | drain the reserve through many tiny rescues | 165 | a keeper draining the reserve through many tiny rescues; may use the whole per-rescue limit even if that does not reach the target |
-| be withdrawn by anyone but the owner | 172–173 | `owner.test.ts`: a stranger cannot withdraw with their own key; a stranger cannot withdraw by presenting the owner's public key with their own signature |
+| be withdrawn by anyone but the owner | 172–173, 183 | `owner.test.ts`: a stranger cannot withdraw with their own key; a stranger cannot withdraw by presenting the owner's public key with their own signature; a stranger cannot withdraw by spending their own coin instead of the owner's; a keeper cannot use the withdraw path without a coin from the owner |
+| (on withdraw) be sent anywhere but the owner's address, or burnt as fees | 187–191, 195–204 | `owner.test.ts`: the vault cannot be sent anywhere but the owner's address…; no extra output can be added to a withdraw; a withdraw cannot burn the reserve as miner fee |
 
 Three attacks that **Paryon's own contracts accept**, which only Backstop stops:
 - minting a second loan key;
