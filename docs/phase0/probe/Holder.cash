@@ -1,0 +1,2 @@
+pragma cashscript ^0.14.0;
+contract Holder() { function go() { require(tx.inputs.length > 0); } }

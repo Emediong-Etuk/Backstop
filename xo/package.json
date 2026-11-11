@@ -1,0 +1,24 @@
+{
+  "name": "@backstop/xo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Backstop as an XO template (for the BCH BLAZE Build with XO bounty)",
+  "exports": {
+    ".": "./src/template.ts"
+  },
+  "scripts": {
+    "export": "tsx scripts/export.ts",
+    "values": "tsx scripts/values.ts"
+  },
+  "dependencies": {
+    "@backstop/contracts": "0.1.0",
+    "@paryonusd/contracts": "1.1.0",
+    "@xo-cash/types": "0.0.8",
+    "@xo-cash/utils": "0.0.10",
+    "cashscript": "0.14.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.6"
+  }
+}

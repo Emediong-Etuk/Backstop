@@ -1,0 +1,5 @@
+{
+  "vaults": [
+    { "setupTxid": "<txid of a Backstop setup transaction>", "note": "copy this file to keeper/vaults.json" }
+  ]
+}

@@ -1,0 +1,13 @@
+node_modules/
+.env
+*.local
+docs/phase0/probe/node_modules/
+
+# keeper vault list for a local run
+keeper/vaults.json
+
+# web build output
+web/.next/
+web/out/
+web/next-env.d.ts
+web/public/deployment.json

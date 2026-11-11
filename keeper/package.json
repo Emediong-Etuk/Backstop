@@ -1,0 +1,22 @@
+{
+  "name": "@backstop/keeper",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Stateless Backstop keeper: finds vaults, checks their loans and broadcasts rescues",
+  "exports": {
+    ".": "./src/index.ts",
+    "./scan": "./src/keeper.ts"
+  },
+  "scripts": {
+    "start": "tsx src/cli.ts"
+  },
+  "dependencies": {
+    "@backstop/contracts": "0.1.0",
+    "@bitauth/libauth": "^3.0.0",
+    "cashscript": "0.14.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.6"
+  }
+}

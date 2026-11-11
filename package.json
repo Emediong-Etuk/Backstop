@@ -1,0 +1,38 @@
+{
+  "name": "backstop",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "contracts",
+    "keeper",
+    "oracle-demo",
+    "xo",
+    "test",
+    "web"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "compile": "npm run compile -w @backstop/contracts",
+    "test": "npm run compile && npm test -w @backstop/test",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "keeper": "npm start -w @backstop/keeper --",
+    "demo:keys": "npm run cli -w @backstop/demo -- keys",
+    "demo:deploy": "npm run cli -w @backstop/demo -- deploy",
+    "demo:crash": "npm run cli -w @backstop/demo -- crash",
+    "demo:setup": "npm run cli -w @backstop/demo -- setup",
+    "demo:status": "npm run cli -w @backstop/demo -- status",
+    "demo:withdraw": "npm run cli -w @backstop/demo -- withdraw",
+    "web:dev": "npm run dev -w @backstop/web",
+    "web:build": "npm run build -w @backstop/web",
+    "web:e2e": "npm run build -w @backstop/web && node web/scripts/e2e-preview.cjs",
+    "demo:links": "npm run cli -w @backstop/demo -- links",
+    "xo:export": "npm run export -w @backstop/xo",
+    "xo:values": "npm run values -w @backstop/xo --"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.2",
+    "typescript": "^6.0.2"
+  }
+}

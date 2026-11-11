@@ -1,0 +1,37 @@
+{
+  "name": "@backstop/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "predev": "node scripts/copy-deployment.mjs",
+    "dev": "next dev --webpack",
+    "prebuild": "node scripts/copy-deployment.mjs",
+    "build": "next build --webpack",
+    "preview": "npx serve out"
+  },
+  "dependencies": {
+    "@backstop/contracts": "0.1.0",
+    "@backstop/demo": "0.1.0",
+    "@backstop/keeper": "0.1.0",
+    "@bitauth/libauth": "^3.0.0",
+    "@walletconnect/sign-client": "2.26.0",
+    "@walletconnect/types": "^2.26.0",
+    "cashscript": "0.14.0",
+    "next": "16.4.6",
+    "qrcode": "1.5.4",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0"
+  },
+  "browserslist": [
+    "chrome >= 110",
+    "edge >= 110",
+    "firefox >= 110",
+    "safari >= 16.4"
+  ]
+}

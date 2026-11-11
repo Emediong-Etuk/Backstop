@@ -1,0 +1,21 @@
+{
+  "name": "@backstop/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Backstop covenant, its compiled artifact, and helpers shared by the tests, keeper and web app",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "compile": "node scripts/compile.mjs"
+  },
+  "dependencies": {
+    "@bitauth/libauth": "^3.0.0",
+    "@paryonusd/contracts": "1.1.0",
+    "cashscript": "0.14.0"
+  },
+  "devDependencies": {
+    "cashc": "0.14.0"
+  }
+}
