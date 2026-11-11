@@ -4,7 +4,7 @@ A pre-funded rescue for ParyonUSD loans on Bitcoin Cash. BCH BLAZE 2026 entry.
 
 A borrower moves their loan key and a BCH reserve into a vault once. If BCH falls far enough that the loan nears liquidation, **anyone** can broadcast a rescue that moves part of the reserve into the borrower's own loan as extra collateral. The borrower doesn't need to be online or sign anything. They also don't need to trust whoever sends the rescue: the vault's contract only accepts a correct rescue.
 
-> Status: **Phase 3 of 6**: contract, tests, keeper, demo oracle and chipnet demo scripts. Web app comes next. Research notes: [`docs/PHASE0.md`](docs/PHASE0.md).
+> Status: **Phase 4 of 6**: contract, tests, keeper, demo oracle, chipnet demo scripts and web app. XO template and submission material come next. Research notes: [`docs/PHASE0.md`](docs/PHASE0.md).
 
 ## Run the tests
 
@@ -44,6 +44,28 @@ npm run keeper -- --watch
 `--dry-run` prints the rescue it would send (inputs, outputs, ratio before and after, raw hex) and broadcasts nothing. `--watch` checks every 60 seconds and broadcasts rescues. Other options: `--fee-rate`, `--reward-sats`, `--server`, `--deployment`. Set `KEEPER_REWARD_ADDRESS` in `.env` to collect rewards (see `.env.example`).
 
 The keeper reads `deployments/chipnet.json`, which `npm run demo:deploy` writes. **Discovery for the demo is the local `keeper/vaults.json` list**, not a ChainGraph query: I could not confirm a chipnet ChainGraph instance. Every vault's rules still come from the chain.
+
+## Web app
+
+A static Next.js site (`web/`): no server, no database, no account. It reads everything from the chain in the browser and signs through the borrower's wallet over WalletConnect (`bch_signTransaction`, chain `bch:bchtest`).
+
+- **Connect:** pair a wallet such as Cashonize on chipnet.
+- **Set up:** the app finds the loan whose key is in the wallet, shows its health and liquidation price, and suggests a reserve and rescue levels. It explains in plain words what a rescue will do. One signature moves the key and reserve into the vault.
+- **Status:** reserve left, the price that triggers a rescue, liquidation price, and the rescue history read from chain. Below that is a single "Withdraw everything" button.
+
+```bash
+npm run web:dev
+```
+
+Open http://localhost:3000. Wallet connection needs `NEXT_PUBLIC_WC_PROJECT_ID` in `.env` (a free WalletConnect project ID from https://dashboard.reown.com) and a `deployments/chipnet.json` from `npm run demo:deploy`.
+
+**Local preview:** open http://localhost:3000/?preview to try the whole flow with no wallet and no network. It runs a throwaway test chain inside the page (mem-cash) with a demo loan and a test wallet, plus buttons that play the price feed, miners and a keeper. It is labelled as a preview on screen. `npm run web:e2e` drives it in a headless browser, on desktop and phone sizes.
+
+```bash
+npm run web:build
+```
+
+This writes the static site to `web/out/`, which you can host anywhere. It reads `deployment.json` next to `index.html` at runtime.
 
 ## Run the demo on chipnet
 
@@ -160,6 +182,7 @@ The owner can always withdraw the key and the whole reserve with one signature, 
 ```
 contracts/   Backstop.cash, compiled artifact, shared TypeScript helpers (@backstop/contracts)
 keeper/      stateless keeper CLI (@backstop/keeper)
+web/         static web app (Next.js, WalletConnect)
 oracle-demo/ DEMO ONLY: demo oracle, chipnet deployment and demo scripts (@backstop/demo)
 deployments/ where the demo deployment lives on chipnet (written by demo:deploy)
 test/        Vitest suite on MockNetworkProvider and mem-cash

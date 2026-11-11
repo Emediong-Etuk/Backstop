@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Stateless Backstop keeper: finds vaults, checks their loans and broadcasts rescues",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./scan": "./src/keeper.ts"
   },
   "scripts": {
     "start": "tsx src/cli.ts"
