@@ -5,7 +5,7 @@ import { protectLoan, readPosition, withdrawEverything, type Position, type Prot
 import { restoreWalletConnect } from '../lib/walletconnect';
 import type { WalletSession } from '../lib/wallet';
 import type { PreviewControls } from '../lib/preview';
-import { usd, shortId } from '../lib/format';
+import { bch, usd, shortId } from '../lib/format';
 import { ConnectScreen } from '../components/ConnectScreen';
 import { SetupScreen } from '../components/SetupScreen';
 import { StatusScreen } from '../components/StatusScreen';
@@ -19,6 +19,7 @@ export default function Home() {
   const [readError, setReadError] = useState<string>();
   const [notice, setNotice] = useState<{ text: string; txid?: string }>();
   const [preview, setPreview] = useState<PreviewControls>();
+  const [loanIndex, setLoanIndex] = useState(0);
 
   // Connect to the network (or start the local preview), and restore an earlier wallet session.
   useEffect(() => {
@@ -74,7 +75,7 @@ export default function Home() {
   };
 
   async function protect(choices: ProtectionChoices) {
-    const loan = position!.loans[0];
+    const loan = position!.loans[Math.min(loanIndex, position!.loans.length - 1)];
     const txid = await protectLoan(chain!, wallet!, loan, choices);
     await done('Your loan is now protected.', txid);
   }
@@ -125,9 +126,20 @@ export default function Home() {
       {wallet && position && activeVault && (
         <StatusScreen view={activeVault} priceCents={position.priceCents} explorerTx={chain?.explorerTx} onWithdraw={withdraw} />
       )}
-      {wallet && position && !activeVault && position.loans[0] && (
-        <SetupScreen key={position.loans[0].loanKeyCategory} loan={position.loans[0]} priceCents={position.priceCents} walletBchSats={position.walletBchSats} onProtect={protect} />
+      {wallet && position && !activeVault && position.loans.length > 1 && (
+        <div className="card">
+          <label htmlFor="loan">This wallet holds {position.loans.length} loans. Which one should Backstop protect?</label>
+          <select id="loan" value={Math.min(loanIndex, position.loans.length - 1)} onChange={(e) => setLoanIndex(Number(e.target.value))}>
+            {position.loans.map((loan, i) => (
+              <option key={loan.loanKeyCategory} value={i}>{bch(loan.collateralSats, 4)} collateral, {usd(loan.debtCents)} borrowed (loan {shortId(loan.loanKeyCategory)})</option>
+            ))}
+          </select>
+        </div>
       )}
+      {wallet && position && !activeVault && position.loans[0] && (() => {
+        const loan = position.loans[Math.min(loanIndex, position.loans.length - 1)];
+        return <SetupScreen key={loan.loanKeyCategory} loan={loan} priceCents={position.priceCents} walletBchSats={position.walletBchSats} onProtect={protect} />;
+      })()}
       {wallet && position && !activeVault && !position.loans[0] && (
         <div className="card">
           <h2>No ParyonUSD loan in this wallet</h2>

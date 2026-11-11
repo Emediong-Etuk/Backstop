@@ -6,14 +6,16 @@
 //   npm run demo:status                       show every vault in keeper/vaults.json
 //   npm run demo:crash -- --price 250         publish a DEMO oracle price
 //   npm run demo:withdraw                     the borrower takes everything back
+//   npm run demo:links                        Markdown table of the demo's transactions, for docs
 //
 // All amounts are BCH; prices are US dollars per BCH.
 import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { ElectrumNetworkProvider, Network, type NetworkProvider } from 'cashscript';
-import { binToHex, cashAddressToLockingBytecode } from '@bitauth/libauth';
+import { binToHex, cashAddressToLockingBytecode, decodeTransaction, hexToBin } from '@bitauth/libauth';
 import type { VaultList } from '@backstop/keeper';
+import { deploymentContracts, history, loadVault, vaultHistory } from '@backstop/contracts';
 import { deployDemo, type DemoDeployment } from './deploy.js';
 import { publishDemoPrice } from './price.js';
 import { setUpDemoVault, vaultStatus, withdrawDemoVault } from './borrower.js';
@@ -185,8 +187,36 @@ async function main() {
       return;
     }
 
+    case 'links': {
+      const provider = await connect();
+      const deployment = readDeployment();
+      const rows = [
+        '| Transaction | What it does | Explorer |',
+        '|---|---|---|',
+        `| Demo deployment | Paryon's price contract, manage function, demo loans and loan keys | [${deployment.demo.genesisTxid.slice(0, 12)}…](${explorer(deployment.demo.genesisTxid)}) |`,
+      ];
+      const paryon = deploymentContracts(provider, deployment);
+      for (const { txid } of await history(provider, paryon.price.lockingBytecode)) {
+        if (txid === deployment.demo.genesisTxid) continue;
+        // Rescues also spend the price contract (to read it); list those under their vault instead.
+        const tx = decodeTransaction(hexToBin(await provider.getRawTransaction(txid)));
+        if (typeof tx !== 'string' && tx.inputs.length === 2) rows.push(`| Price update | DEMO oracle price into Paryon's price contract | [${txid.slice(0, 12)}…](${explorer(txid)}) |`);
+      }
+      for (const { setupTxid, note } of readVaults().vaults) {
+        const vault = await loadVault(provider, setupTxid);
+        for (const event of await vaultHistory(provider, vault)) {
+          const what = event.kind === 'setup' ? `Setup${note ? ` (${note})` : ''}: key and ${fmtBch(event.reserveSats)} reserve into the vault`
+            : event.kind === 'rescue' ? `Rescue: ${fmtBch(event.topUpSats)} into the loan, ${event.overheadSats} sats fee + reward`
+            : 'Withdraw: key and reserve back to the borrower';
+          rows.push(`| ${event.kind[0].toUpperCase()}${event.kind.slice(1)} | ${what} | [${event.txid.slice(0, 12)}…](${explorer(event.txid)}) |`);
+        }
+      }
+      console.log(rows.join('\n'));
+      return;
+    }
+
     default:
-      console.log('commands: keys, deploy, setup, status, crash, withdraw (see oracle-demo/src/cli.ts)');
+      console.log('commands: keys, deploy, setup, status, crash, withdraw, links (see oracle-demo/src/cli.ts)');
   }
 }
 

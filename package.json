@@ -25,7 +25,8 @@
     "demo:withdraw": "npm run cli -w @backstop/demo -- withdraw",
     "web:dev": "npm run dev -w @backstop/web",
     "web:build": "npm run build -w @backstop/web",
-    "web:e2e": "npm run build -w @backstop/web && node web/scripts/e2e-preview.cjs"
+    "web:e2e": "npm run build -w @backstop/web && node web/scripts/e2e-preview.cjs",
+    "demo:links": "npm run cli -w @backstop/demo -- links"
   },
   "devDependencies": {
     "@types/node": "^24.6.2",
