@@ -24,7 +24,7 @@ npm install
 npm test
 ```
 
-`npm test` compiles the covenant and runs 78 tests. They use **Paryon's real compiled contracts** (`@paryonusd/contracts@1.1.0`), on two networks:
+`npm test` compiles the covenant and runs 87 tests. They use **Paryon's real compiled contracts** (`@paryonusd/contracts@1.1.0`), on two networks:
 
 - CashScript's mock network;
 - `@paryonusd/mem-cash`, an in-memory node that checks relative timelocks, standardness and fees the way BCHN does.
@@ -87,7 +87,7 @@ Residual risks:
 - **Not yet run on chipnet itself.** The development sandbox could not reach chipnet. Everything was exercised on the mock network and on mem-cash, including the full demo sequence (`test/demo.test.ts`) and the web app in a browser (`npm run web:e2e`).
 - **WalletConnect signing with Cashonize is untested.** Withdraw relies on the wallet filling a placeholder signature on a contract input, which is CashScript's documented pattern.
 - **WizardConnect is not supported yet.** It needs xpub address derivation; it reuses the same signing request.
-- **The XO template (Phase 5) is not started.**
+- **The XO template is checked offline only.** XO's own parser and compiler show it produces Backstop's and Paryon's exact bytecode (`test/xo.test.ts`), but it has not been run in the XO engine or debug tool; see [`xo/README.md`](xo/README.md).
 - **One loan per vault.** Topping up the reserve means withdrawing and setting up again.
 
 ## Run the demo on chipnet
@@ -172,6 +172,10 @@ npm run web:build
 
 This writes `web/out/`, which you can host anywhere. It reads `deployment.json` next to `index.html` at runtime. Configuration is in `.env` (see `.env.example`): `NEXT_PUBLIC_WC_PROJECT_ID` (free from https://dashboard.reown.com) and optionally `NEXT_PUBLIC_ELECTRUM_SERVER`.
 
+## XO template
+
+`xo/backstop.template.json` expresses the vault's three actions (protect, rescue, withdraw) as an XO template for the XO debug tool. It is generated from the compiled contracts with `npm run xo:export`; `npm run xo:values -- <setup txid>` prints a real vault's values for it. Details and limits: [`xo/README.md`](xo/README.md).
+
 ## Repository layout
 
 ```
@@ -179,6 +183,7 @@ contracts/    Backstop.cash, compiled artifact, shared TypeScript helpers (@back
 keeper/       stateless keeper CLI (@backstop/keeper)
 oracle-demo/  DEMO ONLY: demo oracle, chipnet deployment, demo scripts, local chain (@backstop/demo)
 web/          static web app (Next.js, WalletConnect, local preview)
+xo/           the vault as an XO template (backstop.template.json) for the XO debug tool
 test/         Vitest suite on the mock network and mem-cash
 deployments/  where the demo deployment lives on chipnet (written by demo:deploy)
 docs/         research, architecture, demo script; docs/phase0/probe is the composition probe

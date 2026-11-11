@@ -13,7 +13,9 @@
     "@bitauth/libauth": "^3.0.0",
     "@generalprotocols/price-oracle": "4.0.0",
     "@paryonusd/contracts": "1.1.0",
-    "cashscript": "0.14.0"
+    "cashscript": "0.14.0",
+    "@backstop/xo": "0.1.0",
+    "@xo-cash/utils": "0.0.10"
   },
   "devDependencies": {
     "cashc": "^0.14.0",
