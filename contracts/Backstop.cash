@@ -172,4 +172,35 @@ contract Backstop(
         require(hash160(ownerPubKey) == ownerPkh, "Only the vault owner can withdraw");
         require(checkSig(ownerSig, ownerPubKey), "Only the vault owner can withdraw");
     }
+
+    // The borrower takes everything back by spending one of their own wallet coins in the same
+    // transaction. For wallets that sign only their own coins, not signatures inside a contract
+    // (WizardConnect, and WalletConnect wallets without contract support).
+    function ownerWithdraw(int walletInputIndex) {
+        bytes25 ownerLock = new LockingBytecodeP2PKH(ownerPkh);
+        // Stops: anyone but the borrower. The coin at this input can only be spent with the
+        // borrower's signature, and wallets sign with SIGHASH_ALL, committing to the whole transaction.
+        require(tx.inputs[walletInputIndex].lockingBytecode == ownerLock, "Only the vault owner can withdraw");
+
+        // Stops: a stray borrower signature (e.g. one made with ANYONECANPAY for something else)
+        // sending the vault anywhere but the borrower's own address.
+        require(tx.outputs.length <= 3, "Withdraw may have at most 3 outputs");
+        require(tx.outputs[0].lockingBytecode == ownerLock, "Withdraw must pay the vault owner");
+        require(tx.outputs[1].lockingBytecode == ownerLock, "Withdraw must pay the vault owner");
+        if (tx.outputs.length == 3) {
+            require(tx.outputs[2].lockingBytecode == ownerLock, "Withdraw must pay the vault owner");
+        }
+
+        // Stops: such a stray signature burning the reserve as miner fee.
+        require(tx.inputs.length <= 4, "Withdraw may have at most 4 inputs");
+        int valueIn = tx.inputs[0].value + tx.inputs[1].value + tx.inputs[2].value;
+        if (tx.inputs.length == 4) {
+            valueIn = valueIn + tx.inputs[3].value;
+        }
+        int valueOut = tx.outputs[0].value + tx.outputs[1].value;
+        if (tx.outputs.length == 3) {
+            valueOut = valueOut + tx.outputs[2].value;
+        }
+        require(valueIn - valueOut <= maxOverheadSats, "Withdraw fee exceeds the vault's limit");
+    }
 }
