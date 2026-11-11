@@ -174,15 +174,20 @@ export function setupParts(args: {
   params: BackstopParams;
   keyUtxo: SpendableUtxo;
   fundingUtxos: SpendableUtxo[];
-  /** Local signer (scripts, tests), or a wallet placeholder unlocker (WalletConnect). */
-  ownerSigner: SignatureTemplate | Unlocker;
+  /**
+   * Local signer (scripts, tests), a wallet placeholder unlocker (WalletConnect), or one per coin
+   * for HD wallets whose coins sit at different addresses (WizardConnect).
+   */
+  ownerSigner: SignatureTemplate | Unlocker | ((utxo: SpendableUtxo) => Unlocker);
   reserveSats: bigint;
   minerFeeSats: bigint;
   changeLockingBytecode: string;
 }): TransactionParts & { opReturn: string[] } {
   const { vault, params, keyUtxo, fundingUtxos, ownerSigner, reserveSats, minerFeeSats } = args;
-  const unlocker = ownerSigner instanceof SignatureTemplate ? ownerSigner.unlockP2PKH() : ownerSigner;
-  const inputs = [keyUtxo, ...fundingUtxos].map((utxo) => ({ utxo, unlocker }));
+  const unlockerFor = (utxo: SpendableUtxo): Unlocker => ownerSigner instanceof SignatureTemplate
+    ? ownerSigner.unlockP2PKH()
+    : typeof ownerSigner === 'function' ? ownerSigner(utxo) : ownerSigner;
+  const inputs = [keyUtxo, ...fundingUtxos].map((utxo) => ({ utxo, unlocker: unlockerFor(utxo) }));
   const totalIn = [keyUtxo, ...fundingUtxos].reduce((sum, u) => sum + u.satoshis, 0n);
   const change = totalIn - PARYON_DUST - reserveSats - minerFeeSats;
   if (change < 0n) throw new Error('not enough BCH for the reserve and fee');

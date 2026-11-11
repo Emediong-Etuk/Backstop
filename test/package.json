@@ -10,15 +10,20 @@
     "@backstop/contracts": "0.1.0",
     "@backstop/demo": "0.1.0",
     "@backstop/keeper": "0.1.0",
+    "@backstop/xo": "0.1.0",
     "@bitauth/libauth": "^3.0.0",
     "@generalprotocols/price-oracle": "4.0.0",
     "@paryonusd/contracts": "1.1.0",
-    "cashscript": "0.14.0",
-    "@backstop/xo": "0.1.0",
-    "@xo-cash/utils": "0.0.10"
+    "@xo-cash/utils": "0.0.10",
+    "cashscript": "0.14.0"
   },
   "devDependencies": {
+    "@types/ws": "^8.18.2",
+    "@wizardconnect/core": "^0.2.5",
+    "@wizardconnect/dapp": "^0.2.2",
+    "@wizardconnect/wallet": "^0.2.3",
     "cashc": "^0.14.0",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.1",
+    "ws": "^8.22.2"
   }
 }

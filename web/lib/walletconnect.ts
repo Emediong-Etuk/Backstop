@@ -38,12 +38,15 @@ async function toSession(signClient: InstanceType<typeof SignClient>, session: S
   if (typeof decoded === 'string') throw new Error(`The wallet gave an address this app cannot read: ${decoded}`);
   const lockingBytecode = binToHex(decoded.bytecode);
   if (!/^76a914[0-9a-f]{40}88ac$/.test(lockingBytecode)) throw new Error('Please use a standard (P2PKH) wallet address.');
+  const pkh = lockingBytecode.slice(6, 46);
   return {
     kind: 'walletconnect',
     label: session.peer.metadata.name || 'Your wallet',
     address,
     lockingBytecode,
-    pkh: lockingBytecode.slice(6, 46),
+    pkh,
+    addresses: [{ address, lockingBytecode, pkh }],
+    // WalletConnect wallets find the inputs to sign themselves (one address per session).
     signTransaction: async (request) => signClient.request({
       chainId: CHAIN_ID,
       topic: session.topic,

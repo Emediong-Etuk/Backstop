@@ -33,6 +33,7 @@ export async function startPreview(): Promise<{ chain: Chain; wallet: WalletSess
   const chain: Chain = { kind: 'preview', provider, deployment, paryon: paryonContracts(provider, deployment) };
   const wallet: WalletSession = {
     kind: 'preview', label: 'Preview wallet', address: borrower.address, lockingBytecode: borrower.lockingBytecode, pkh: borrower.pkh,
+    addresses: [{ address: borrower.address, lockingBytecode: borrower.lockingBytecode, pkh: borrower.pkh }],
     localSigner: borrower.signer, disconnect: async () => {},
   };
   const controls: PreviewControls = {
