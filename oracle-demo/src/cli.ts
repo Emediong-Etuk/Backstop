@@ -7,6 +7,9 @@
 //   npm run demo:crash -- --price 250         publish a DEMO oracle price
 //   npm run demo:withdraw                     the borrower takes everything back
 //   npm run demo:links                        Markdown table of the demo's transactions, for docs
+//   npm run demo:servers                      compare chipnet Electrum servers (are they in sync?)
+//
+// Every command uses CHIPNET_ELECTRUM_SERVER from .env, or --server, or chipnet.bch.ninja.
 //
 // All amounts are BCH; prices are US dollars per BCH.
 import { parseArgs } from 'node:util';
@@ -15,7 +18,7 @@ import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs
 import { ElectrumNetworkProvider, Network, type NetworkProvider } from 'cashscript';
 import { binToHex, cashAddressToLockingBytecode, decodeTransaction, hexToBin } from '@bitauth/libauth';
 import type { VaultList } from '@backstop/keeper';
-import { deploymentContracts, history, loadVault, vaultHistory } from '@backstop/contracts';
+import { CHIPNET_SERVERS, deploymentContracts, history, loadVault, staleServerWarning, tipAgeMinutes, vaultHistory } from '@backstop/contracts';
 import { deployDemo, type DemoDeployment } from './deploy.js';
 import { publishDemoPrice } from './price.js';
 import { setUpDemoVault, vaultStatus, withdrawDemoVault } from './borrower.js';
@@ -61,13 +64,17 @@ const { values } = parseArgs({
   },
 });
 
+const server = values.server || process.env.CHIPNET_ELECTRUM_SERVER || 'chipnet.bch.ninja';
+
 async function connect(): Promise<NetworkProvider> {
-  const provider = new ElectrumNetworkProvider(Network.CHIPNET, values.server ? { hostname: values.server } : {});
+  const provider = new ElectrumNetworkProvider(Network.CHIPNET, { hostname: server });
   try {
     await provider.getBlockHeight();
   } catch (error) {
-    throw new Error(`Cannot reach a chipnet Electrum server (${(error as Error).message}). Try --server chipnet.imaginary.cash`);
+    throw new Error(`Cannot reach the chipnet Electrum server ${server} (${(error as Error).message}). Run "npm run demo:servers" to compare servers.`);
   }
+  const warning = await staleServerWarning(provider, server);
+  if (warning) console.warn(warning);
   return provider;
 }
 
@@ -215,8 +222,34 @@ async function main() {
       return;
     }
 
+    case 'servers': {
+      // Servers can disagree: one whose node has fallen off the network keeps answering, but its
+      // blocks stop and what is sent through it never confirms.
+      const genesisTxid = existsSync(deploymentFile) ? readDeployment().demo.genesisTxid : undefined;
+      const hosts = [...new Set([server, ...CHIPNET_SERVERS])];
+      console.log(`Using ${server}${values.server ? ' (--server)' : process.env.CHIPNET_ELECTRUM_SERVER ? ' (CHIPNET_ELECTRUM_SERVER in .env)' : ' (default)'}\n`);
+      for (const host of hosts) {
+        const provider = new ElectrumNetworkProvider(Network.CHIPNET, { hostname: host });
+        try {
+          const height = await provider.getBlockHeight();
+          const age = await tipAgeMinutes(provider);
+          let deploymentNote = '';
+          if (genesisTxid) {
+            const known = await provider.getRawTransaction(genesisTxid).then(() => true, () => false);
+            deploymentNote = known ? ' | has your demo deployment' : ' | does NOT have your demo deployment';
+          }
+          console.log(`${host}: block ${height}, mined ${age === undefined ? '?' : `${age} min`} ago${deploymentNote}`);
+        } catch (error) {
+          console.log(`${host}: not reachable (${(error as Error).message})`);
+        }
+        await provider.disconnect().catch(() => {});
+      }
+      console.log('\nAll tools must use a server that is on the newest block. Set it once in .env: CHIPNET_ELECTRUM_SERVER=<host>');
+      return;
+    }
+
     default:
-      console.log('commands: keys, deploy, setup, status, crash, withdraw, links (see oracle-demo/src/cli.ts)');
+      console.log('commands: keys, deploy, setup, status, crash, withdraw, links, servers (see oracle-demo/src/cli.ts)');
   }
 }
 

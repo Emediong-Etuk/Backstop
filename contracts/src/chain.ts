@@ -122,6 +122,27 @@ export async function history(provider: NetworkProvider, lockingBytecode: string
   return entries.map((e) => ({ txid: e.tx_hash, height: e.height }));
 }
 
+/** Chipnet Electrum servers known to the demo tools, for comparing which ones are in sync. */
+export const CHIPNET_SERVERS = ['chipnet.bch.ninja', 'chipnet.imaginary.cash'];
+
+/**
+ * How long ago the server's newest block was mined, in minutes. A server whose node has fallen
+ * off the network keeps answering, but its newest block gets older and older, and transactions
+ * sent through it never confirm.
+ */
+export async function tipAgeMinutes(provider: NetworkProvider, now = Date.now()): Promise<number | undefined> {
+  const time = await blockTime(provider, await provider.getBlockHeight());
+  return time === undefined ? undefined : Math.floor((now / 1000 - time) / 60);
+}
+
+/** A warning when the server looks stuck, or undefined. Chipnet blocks are irregular, so allow two hours. */
+export async function staleServerWarning(provider: NetworkProvider, server: string, now = Date.now()): Promise<string | undefined> {
+  const minutes = await tipAgeMinutes(provider, now).catch(() => undefined);
+  if (minutes === undefined || minutes < 120) return undefined;
+  return `WARNING: the newest block on ${server} is ${(minutes / 60).toFixed(1)} hours old. The server may have fallen off the network, `
+    + 'so transactions sent through it would never confirm. Compare servers with "npm run demo:servers".';
+}
+
 /** Unix time of a block, read from its 80-byte header. */
 export async function blockTime(provider: NetworkProvider, height: number): Promise<number | undefined> {
   if (height <= 0) return undefined;

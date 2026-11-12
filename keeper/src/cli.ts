@@ -10,7 +10,8 @@
 //   --watch               repeat every --interval seconds (default 60)
 //   --fee-rate <n>        miner fee in sat/byte (default 1)
 //   --reward-sats <n>     keeper reward to ask for, capped by each vault (default 2000)
-//   --server <host>       Electrum server (default: CashScript's server for the network)
+//   --server <host>       Electrum server (default: CHIPNET_ELECTRUM_SERVER from .env on chipnet,
+//                         else CashScript's server for the network)
 //
 // Environment (optional, see .env.example):
 //   KEEPER_REWARD_ADDRESS  where rewards go. Without it the keeper works for free.
@@ -22,6 +23,7 @@ import { ElectrumNetworkProvider, Network } from 'cashscript';
 import { binToHex, cashAddressToLockingBytecode } from '@bitauth/libauth';
 import { readJson, type Deployment, type VaultList } from './config.js';
 import { scanOnce } from './keeper.js';
+import { staleServerWarning } from '@backstop/contracts';
 
 const root = resolve(import.meta.dirname, '../..');
 // Optional settings from the repository's .env file (never committed; see .env.example).
@@ -45,14 +47,19 @@ if (deployment.network !== 'chipnet' && deployment.network !== 'mainnet') {
   throw new Error(`The CLI runs on chipnet or mainnet; "${deployment.network}" is for tests`);
 }
 const network = deployment.network === 'chipnet' ? Network.CHIPNET : Network.MAINNET;
-const provider = new ElectrumNetworkProvider(network, values.server ? { hostname: values.server } : {});
+const server = values.server || (network === Network.CHIPNET ? process.env.CHIPNET_ELECTRUM_SERVER : undefined);
+const provider = new ElectrumNetworkProvider(network, server ? { hostname: server } : {});
 try {
   await provider.getBlockHeight();
 } catch (error) {
-  console.error(`Cannot reach a ${network} Electrum server${values.server ? ` at ${values.server}` : ''}: ${(error as Error).message}`);
+  console.error(`Cannot reach a ${network} Electrum server${server ? ` at ${server}` : ''}: ${(error as Error).message}`);
   console.error('Try another server with --server <host>, e.g. --server chipnet.imaginary.cash');
   process.exit(1);
 }
+// A server that fell off the network still answers, but no block ever arrives: cooldowns never
+// pass and nothing sent through it confirms. Say so instead of waiting forever.
+const staleWarning = await staleServerWarning(provider, server ?? `the default ${network} server`);
+if (staleWarning) console.warn(staleWarning);
 
 let keeperLockingBytecode: string | undefined;
 const rewardAddress = process.env.KEEPER_REWARD_ADDRESS;

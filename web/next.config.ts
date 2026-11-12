@@ -5,6 +5,8 @@ import { existsSync } from 'node:fs';
 if (existsSync('../.env')) process.loadEnvFile('../.env');
 
 const config: NextConfig = {
+  // The same chipnet server as the demo scripts and the keeper (CHIPNET_ELECTRUM_SERVER in .env).
+  env: { NEXT_PUBLIC_ELECTRUM_SERVER: process.env.NEXT_PUBLIC_ELECTRUM_SERVER || process.env.CHIPNET_ELECTRUM_SERVER || '' },
   // A static site: no server, no API routes. Everything runs in the browser.
   output: 'export',
   images: { unoptimized: true },

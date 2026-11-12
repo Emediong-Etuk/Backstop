@@ -28,6 +28,7 @@
     "web:build": "npm run build -w @backstop/web",
     "web:e2e": "npm run build -w @backstop/web && node web/scripts/e2e-preview.cjs",
     "demo:links": "npm run cli -w @backstop/demo -- links",
+    "demo:servers": "npm run cli -w @backstop/demo -- servers",
     "xo:export": "npm run export -w @backstop/xo",
     "xo:values": "npm run values -w @backstop/xo --"
   },

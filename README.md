@@ -24,7 +24,7 @@ npm install
 npm test
 ```
 
-`npm test` compiles the covenant and runs 98 tests. They use **Paryon's real compiled contracts** (`@paryonusd/contracts@1.1.0`), on two networks:
+`npm test` compiles the covenant and runs 99 tests. They use **Paryon's real compiled contracts** (`@paryonusd/contracts@1.1.0`), on two networks:
 
 - CashScript's mock network;
 - `@paryonusd/mem-cash`, an in-memory node that checks relative timelocks, standardness and fees the way BCHN does.
@@ -94,6 +94,14 @@ Residual risks:
 
 These steps need a normal internet connection (Electrum over WebSocket). The recording sequence is in [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md).
 
+**Check the chipnet servers first.** A server whose node has fallen off the network keeps answering, but no new block arrives there and nothing sent through it confirms. Compare the servers:
+
+```bash
+npm run demo:servers
+```
+
+Then put a server that is on the newest block in `.env` as `CHIPNET_ELECTRUM_SERVER`. The demo scripts, the keeper and the web app all use it. Fund your addresses from a faucet whose node is on the same chain. On 12 November 2026 the `chipnet.bch.ninja` server and faucet were stuck at block 331,985 while chipnet was past 332,075.
+
 1. Create demo keys in `.env`, which git ignores:
 
    ```bash
@@ -154,7 +162,7 @@ npm run keeper -- --dry-run
 npm run keeper -- --watch
 ```
 
-The keeper is stateless. It needs no private key and no funds. `--dry-run` prints the rescue it would send (inputs, outputs, ratio before and after, raw hex) and broadcasts nothing. It checks each transaction locally before broadcasting and waits out each vault's cooldown. Options: `--fee-rate`, `--reward-sats`, `--server`, `--deployment`, `--vaults`. Set `KEEPER_REWARD_ADDRESS` in `.env` to collect rewards.
+The keeper is stateless. It needs no private key and no funds. `--dry-run` prints the rescue it would send (inputs, outputs, ratio before and after, raw hex) and broadcasts nothing. It checks each transaction locally before broadcasting and waits out each vault's cooldown. Options: `--fee-rate`, `--reward-sats`, `--server` (default: `CHIPNET_ELECTRUM_SERVER` from `.env`), `--deployment`, `--vaults`. Set `KEEPER_REWARD_ADDRESS` in `.env` to collect rewards.
 
 ## Web app
 
@@ -170,7 +178,7 @@ To build the site:
 npm run web:build
 ```
 
-This writes `web/out/`, which you can host anywhere. It reads `deployment.json` next to `index.html` at runtime. Configuration is in `.env` (see `.env.example`): `NEXT_PUBLIC_WC_PROJECT_ID` (free from https://dashboard.reown.com) and optionally `NEXT_PUBLIC_ELECTRUM_SERVER`.
+This writes `web/out/`, which you can host anywhere. It reads `deployment.json` next to `index.html` at runtime. Configuration is in `.env` (see `.env.example`): `NEXT_PUBLIC_WC_PROJECT_ID` (free from https://dashboard.reown.com) and optionally `CHIPNET_ELECTRUM_SERVER`.
 
 ## XO template
 
