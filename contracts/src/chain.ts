@@ -196,5 +196,9 @@ export async function vaultHistory(provider: NetworkProvider, vault: Vault): Pro
       events.push({ kind: 'withdraw', txid, height });
     }
   }
-  return events;
+  // Servers list a block's transactions in block order, which on BCH is by txid (CTOR), not by
+  // dependency: a setup and a withdraw mined in the same block can come back withdraw first.
+  const rank = { setup: 0, rescue: 1, withdraw: 2 } as const;
+  const when = (e: VaultEvent) => (e.height > 0 ? e.height : Number.MAX_SAFE_INTEGER);
+  return events.sort((a, b) => when(a) - when(b) || rank[a.kind] - rank[b.kind]);
 }
