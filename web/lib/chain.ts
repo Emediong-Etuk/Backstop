@@ -11,6 +11,8 @@ export interface Chain {
   deployment: Deployment;
   paryon: ParyonContracts;
   explorerTx?: (txid: string) => string;
+  /** The Electrum server the app reads from, named in errors. */
+  server?: string;
 }
 
 export class NoDeploymentError extends Error {}
@@ -31,9 +33,10 @@ export async function connectChipnet(): Promise<Chain> {
   const response = await fetch('deployment.json', { cache: 'no-store' }).catch(() => undefined);
   if (!response?.ok) throw new NoDeploymentError('No chipnet deployment is configured for this site yet.');
   const deployment = (await response.json()) as Deployment;
-  const provider = chipnetProvider(process.env.NEXT_PUBLIC_ELECTRUM_SERVER);
+  const server = process.env.NEXT_PUBLIC_ELECTRUM_SERVER || 'chipnet.bch.ninja';
+  const provider = chipnetProvider(server);
   return {
-    kind: 'chipnet', provider, deployment, paryon: paryonContracts(provider, deployment),
+    kind: 'chipnet', provider, server, deployment, paryon: paryonContracts(provider, deployment),
     explorerTx: (txid) => `https://chipnet.imaginary.cash/tx/${txid}`,
   };
 }

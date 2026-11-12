@@ -38,7 +38,13 @@ export async function currentPriceCents(chain: Chain): Promise<bigint> {
     .filter((u) => u.token?.category === chain.deployment.paryonTokenId && u.token.nft?.commitment.startsWith('00'))
     .map((u) => parsePriceState(u.token!.nft!.commitment))
     .sort((a, b) => (a.sequence < b.sequence ? 1 : -1));
-  if (!threads[0]) throw new Error('The price feed could not be read.');
+  if (!threads[0]) {
+    throw new Error(chain.server
+      ? `The demo price feed was not found on ${chain.server}. That server may not have the demo deployment: `
+        + 'use the server "npm run demo:deploy" used (chipnet.bch.ninja unless you passed --server), '
+        + 'and check the deployment with "npm run demo:status".'
+      : 'The price feed could not be read.');
+  }
   return threads[0].priceCents;
 }
 
