@@ -161,7 +161,10 @@ export async function findOwnedVaults(provider: NetworkProvider, ownerPkh: strin
       try { vaults.push(await loadVault(provider, txid)); } catch { /* not a valid setup */ }
     }
   }
-  return vaults;
+  // Protecting the same loan again with the same rules gives the same vault address. Keep one
+  // entry per address (the latest setup); its history covers every setup at that address.
+  const byAddress = new Map(vaults.map((v) => [v.contract.lockingBytecode, v]));
+  return [...byAddress.values()];
 }
 
 export type VaultEvent =
@@ -183,7 +186,9 @@ export async function vaultHistory(provider: NetworkProvider, vault: Vault): Pro
   for (const { txid, height } of await history(provider, vaultBytecode)) {
     const tx = await getTx(txid);
     const pays = (i: number) => tx.outputs[i] && binToHex(tx.outputs[i].lockingBytecode) === vaultBytecode;
-    if (txid === vault.setupTxid) {
+    const isSetup = txid === vault.setupTxid
+      || (pays(0) && pays(1) && tx.outputs.some((o) => decodeSetupOutput(binToHex(o.lockingBytecode)) !== undefined));
+    if (isSetup) {
       events.push({ kind: 'setup', txid, height, reserveSats: tx.outputs[1].valueSatoshis });
     } else if (tx.inputs.length === 6 && pays(4) && pays(5)) {
       const prevLoan = await getTx(binToHex(tx.inputs[1].outpointTransactionHash));

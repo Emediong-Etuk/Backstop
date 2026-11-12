@@ -73,4 +73,32 @@ describe("Reading a borrower's position from the chain", () => {
     const events = await vaultHistory(provider, vault);
     expect(events.map((e) => [e.kind, e.txid])).toEqual([['setup', setupTxid], ['withdraw', withdrawTxid]]);
   });
+
+  it('shows every setup when the same loan is protected again with the same rules (same vault address)', async () => {
+    const provider = new MemCashProvider();
+    provider.addUtxo(funder.lockingBytecode, { txid: binToHex(sha256.hash(utf8ToBin('f3'))), vout: 0, satoshis: 2n * BCH });
+    provider.addUtxo(borrower.lockingBytecode, { txid: binToHex(sha256.hash(utf8ToBin('b3'))), vout: 0, satoshis: 1n * BCH });
+    const deployment = await deployDemo({
+      provider, funder, oracle, startPriceCents: 30_000n, log: () => {},
+      loans: [{ collateralSats: BCH / 2n, debtCents: 11_500n, borrowerLockingBytecode: borrower.lockingBytecode }],
+    });
+    provider.mine();
+    const loanKeyCategory = deployment.demo.loans[0].loanKeyCategory;
+    const setup = () => setUpDemoVault({ provider, deployment, borrower, loanKeyCategory, reserveSats: 3n * BCH / 10n, cooldownBlocks: 1n });
+    const first = await setup();
+    provider.mine();
+    const withdrawTxid = await withdrawDemoVault({ provider, borrower, setupTxid: first.setupTxid });
+    provider.mine();
+    const second = await setup();
+    provider.mine();
+
+    const vaults = await findOwnedVaults(provider, borrower.pkh, borrower.lockingBytecode);
+    expect(vaults.map((v) => v.setupTxid)).toEqual([second.setupTxid]);
+    // Either setup transaction leads to the same history, as the keeper's vault list may hold the older one.
+    for (const setupTxid of [first.setupTxid, second.setupTxid]) {
+      const vault = vaults[0].setupTxid === setupTxid ? vaults[0] : { ...vaults[0], setupTxid };
+      const events = await vaultHistory(provider, vault);
+      expect(events.map((e) => [e.kind, e.txid])).toEqual([['setup', first.setupTxid], ['withdraw', withdrawTxid], ['setup', second.setupTxid]]);
+    }
+  });
 });
