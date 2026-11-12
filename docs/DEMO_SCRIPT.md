@@ -16,7 +16,7 @@ Three windows on screen: the **web app** (left), the **keeper** terminal (top ri
    npm run demo:keys -- --write
    ```
 
-   Fund the printed funder address with about 1.2 tBCH from https://chipnet.bch.ninja/.
+   Fund the printed funder address with about 1.2 tBCH from a chipnet faucet on the same chain as your server (or about 0.07 tBCH for the smaller demo in the README).
 
 2. In Cashonize (chipnet), copy your wallet's token-aware address (`bchtest:z…`) and fund it with about 0.6 tBCH from the faucet.
 

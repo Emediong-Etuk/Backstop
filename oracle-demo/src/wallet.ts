@@ -68,7 +68,7 @@ export async function pickCoins(provider: NetworkProvider, wallet: DemoWallet, s
     total += coin.satoshis;
   }
   if (total < sats) {
-    throw new Error(`${label} wallet ${wallet.address} has ${total} sats, needs ${sats}. Get chipnet BCH from https://chipnet.bch.ninja/`);
+    throw new Error(`${label} wallet ${wallet.address} has ${total} sats, needs ${sats}. Send it chipnet BCH from a faucet on the same chain as your server ("npm run demo:servers" checks the servers)`);
   }
   return picked;
 }

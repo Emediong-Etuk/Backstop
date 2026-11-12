@@ -108,7 +108,7 @@ Then put a server that is on the newest block in `.env` as `CHIPNET_ELECTRUM_SER
    npm run demo:keys -- --write
    ```
 
-2. Fund the printed addresses from https://chipnet.bch.ninja/: about 1.2 tBCH for the funder and 0.6 tBCH for the borrower.
+2. Fund the printed addresses from a chipnet faucet whose node is on the newest block: about 1.2 tBCH for the funder and 0.6 tBCH for the borrower (or about a tenth of that with the smaller demo below).
 
 3. Deploy Paryon's add-collateral contracts with two demo loans (0.5 BCH collateral, $115 debt, at $300/BCH, so 130%). Add `--borrower-address <bchtest:z…>` to send the loan keys to a Cashonize wallet.
 
