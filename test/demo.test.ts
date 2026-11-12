@@ -5,7 +5,7 @@ import { OracleData } from '@generalprotocols/price-oracle';
 import { scanOnce } from '@backstop/keeper';
 import { paryonContracts, parseLoanState } from '@backstop/contracts';
 import {
-  deployDemo, DEMO_NO_MIGRATION_KEY, nextHeartbeatSequence, publishDemoPrice, setUpDemoVault, signDemoPrice, vaultStatus, walletFromPrivateKey, withdrawDemoVault,
+  deployDemo, DEMO_NO_MIGRATION_KEY, nextHeartbeatSequence, publishDemoPrice, sendBch, setUpDemoVault, signDemoPrice, vaultStatus, walletFromPrivateKey, withdrawDemoVault,
 } from '@backstop/demo';
 import { MemCashProvider } from '@backstop/demo';
 
@@ -127,6 +127,41 @@ describe('The demo on a BCHN-like node', () => {
     expect(after.ratioBps).toBeGreaterThan(14_900n);
     expect(after.ratioBps).toBeLessThanOrEqual(15_000n);
 
+    await withdrawDemoVault({ provider, borrower, setupTxid });
+  });
+
+  it('runs when only the funder got faucet coins: it pays the wallet 0.004 BCH and still pays for the price crash', async () => {
+    // The chipnet run of 12 November 2026: the funder had 1,017,000 sats on the real chain and
+    // the borrower's wallet none, because the other faucet payments went to a server on its own branch.
+    const provider = new MemCashProvider();
+    provider.addUtxo(funder.lockingBytecode, { txid: binToHex(sha256.hash(utf8ToBin('one faucet request'))), vout: 0, satoshis: 1_017_000n });
+    const log = () => {};
+    const deployment = await deployDemo({
+      provider, funder, oracle, startPriceCents: 3_000_000n, log,
+      loans: [{ collateralSats: 500_000n, debtCents: 11_500n, borrowerLockingBytecode: borrower.lockingBytecode }],
+    });
+    provider.mine();
+
+    await sendBch({ provider, from: funder, to: borrower.tokenAddress, sats: 400_000n });
+    provider.mine();
+    const { setupTxid } = await setUpDemoVault({
+      provider, deployment, borrower, loanKeyCategory: deployment.demo.loans[0].loanKeyCategory, reserveSats: 300_000n, cooldownBlocks: 1n,
+    });
+    provider.mine();
+
+    await publishDemoPrice({ provider, deployment, oracle, funder, priceCents: 2_650_000n, log });
+    provider.mine();
+    const [rescue] = await scanOnce({ provider, deployment, setupTxids: [setupTxid], dryRun: false, log });
+    expect(rescue.action).toBe('rescued');
+    provider.mine();
+    const after = await vaultStatus({ provider, deployment, setupTxid });
+    if ('empty' in after) throw new Error(after.empty);
+    // Half the reserve (0.0015 BCH) is the per-rescue limit; it lifts the loan to just under 150%.
+    expect(after.ratioBps).toBeGreaterThan(14_500n);
+    expect(after.ratioBps).toBeLessThanOrEqual(15_000n);
+
+    // The demo can still put the price back up afterwards.
+    await publishDemoPrice({ provider, deployment, oracle, funder, priceCents: 3_000_000n, log });
     await withdrawDemoVault({ provider, borrower, setupTxid });
   });
 });

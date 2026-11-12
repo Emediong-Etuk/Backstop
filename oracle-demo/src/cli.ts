@@ -8,6 +8,7 @@
 //   npm run demo:withdraw                     the borrower takes everything back
 //   npm run demo:links                        Markdown table of the demo's transactions, for docs
 //   npm run demo:servers                      compare chipnet Electrum servers (are they in sync?)
+//   npm run demo:fund -- --to <address> --amount 0.004   send the funder's spare BCH to a wallet
 //
 // Every command uses CHIPNET_ELECTRUM_SERVER from .env, or --server, or chipnet.bch.ninja.
 //
@@ -22,7 +23,7 @@ import { behindWarning, CHIPNET_SERVERS, otherChipnetHeights, deploymentContract
 import { deployDemo, type DemoDeployment } from './deploy.js';
 import { publishDemoPrice } from './price.js';
 import { setUpDemoVault, vaultStatus, withdrawDemoVault } from './borrower.js';
-import { newWallet, walletFromEnv } from './wallet.js';
+import { bchCoins, newWallet, sendBch, walletFromEnv } from './wallet.js';
 
 const root = resolve(import.meta.dirname, '../..');
 const envFile = resolve(root, '.env');
@@ -61,6 +62,8 @@ const { values } = parseArgs({
     target: { type: 'string', default: '150' },
     cooldown: { type: 'string', default: '1' },
     vault: { type: 'string' },
+    to: { type: 'string' },
+    amount: { type: 'string' },
   },
 });
 
@@ -223,6 +226,20 @@ async function main() {
       return;
     }
 
+    case 'fund': {
+      if (!values.to || !values.amount) throw new Error('Usage: npm run demo:fund -- --to <bchtest: address> --amount <BCH>');
+      const decoded = cashAddressToLockingBytecode(values.to);
+      if (typeof decoded === 'string') throw new Error(`--to: ${decoded}`);
+      const provider = await connect();
+      const funder = walletFromEnv('DEMO_FUNDER_WIF');
+      const before = (await bchCoins(provider, funder)).reduce((sum, c) => sum + c.satoshis, 0n);
+      console.log(`Funder ${funder.address} has ${fmtBch(before)}.`);
+      const txid = await sendBch({ provider, from: funder, to: values.to, sats: bchToSats(values.amount) });
+      console.log(`Sent ${fmtBch(bchToSats(values.amount))} to ${values.to}: ${explorer(txid)}`);
+      console.log(`The funder keeps about ${fmtBch(before - bchToSats(values.amount))} for price updates.`);
+      return;
+    }
+
     case 'servers': {
       // Servers can disagree: one whose node has fallen off the network keeps answering, but its
       // blocks stop and what is sent through it never confirms.
@@ -256,7 +273,7 @@ async function main() {
     }
 
     default:
-      console.log('commands: keys, deploy, setup, status, crash, withdraw, links, servers (see oracle-demo/src/cli.ts)');
+      console.log('commands: keys, deploy, setup, status, crash, withdraw, links, servers, fund (see oracle-demo/src/cli.ts)');
   }
 }
 

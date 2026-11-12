@@ -24,7 +24,7 @@ npm install
 npm test
 ```
 
-`npm test` compiles the covenant and runs 102 tests. They use **Paryon's real compiled contracts** (`@paryonusd/contracts@1.1.0`), on two networks:
+`npm test` compiles the covenant and runs 103 tests. They use **Paryon's real compiled contracts** (`@paryonusd/contracts@1.1.0`), on two networks:
 
 - CashScript's mock network;
 - `@paryonusd/mem-cash`, an in-memory node that checks relative timelocks, standardness and fees the way BCHN does.
@@ -125,6 +125,14 @@ Then put a server that is on the newest block in `.env` as `CHIPNET_ELECTRUM_SER
    Then use a 0.05 BCH reserve, and crash to `--price 2650` instead of 265.
 
    With only one faucet request (1,000,000 sats) per address, go one step further: `--price 30000 --collateral 0.005`, a 0.005 BCH reserve, and crash to `--price 26500`.
+
+   If only the funder got coins, it can pay the borrower's wallet from what the deploy leaves (`test/demo.test.ts` runs this with a single 1,000,000-sat faucet request):
+
+   ```bash
+   npm run demo:fund -- --to <wallet address> --amount 0.004
+   ```
+
+   Then use a 0.003 BCH reserve.
 
 4. Either set up through the web app (`npm run web:dev`, with `NEXT_PUBLIC_WC_PROJECT_ID` in `.env`), or with the scripted borrower:
 
