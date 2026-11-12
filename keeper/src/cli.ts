@@ -23,7 +23,7 @@ import { ElectrumNetworkProvider, Network } from 'cashscript';
 import { binToHex, cashAddressToLockingBytecode } from '@bitauth/libauth';
 import { readJson, type Deployment, type VaultList } from './config.js';
 import { scanOnce } from './keeper.js';
-import { staleServerWarning } from '@backstop/contracts';
+import { behindWarning, otherChipnetHeights, staleServerWarning } from '@backstop/contracts';
 
 const root = resolve(import.meta.dirname, '../..');
 // Optional settings from the repository's .env file (never committed; see .env.example).
@@ -58,7 +58,11 @@ try {
 }
 // A server that fell off the network still answers, but no block ever arrives: cooldowns never
 // pass and nothing sent through it confirms. Say so instead of waiting forever.
-const staleWarning = await staleServerWarning(provider, server ?? `the default ${network} server`);
+const serverName = server ?? 'chipnet.bch.ninja';
+const staleWarning = await staleServerWarning(provider, server ?? `the default ${network} server`)
+  ?? (network === Network.CHIPNET
+    ? behindWarning(serverName, await provider.getBlockHeight(), await otherChipnetHeights(serverName, (host) => new ElectrumNetworkProvider(Network.CHIPNET, { hostname: host })))
+    : undefined);
 if (staleWarning) console.warn(staleWarning);
 
 let keeperLockingBytecode: string | undefined;

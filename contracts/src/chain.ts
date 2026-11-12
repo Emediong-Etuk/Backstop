@@ -143,6 +143,34 @@ export async function staleServerWarning(provider: NetworkProvider, server: stri
     + 'so transactions sent through it would never confirm. Compare servers with "npm run demo:servers".';
 }
 
+/**
+ * A warning when another server is several blocks ahead, or undefined. A server on its own branch
+ * of the chain can still get the odd block, so a fresh newest block alone does not prove it is in
+ * step with everyone else; comparing heights does.
+ */
+export function behindWarning(server: string, height: number, others: Array<{ server: string; height: number }>): string | undefined {
+  const ahead = others.filter((o) => o.server !== server && o.height - height >= 3).sort((a, b) => b.height - a.height)[0];
+  if (!ahead) return undefined;
+  return `WARNING: ${server} is at block ${height}, but ${ahead.server} is at block ${ahead.height}. ${server} is behind or on its own branch `
+    + 'of the chain, so transactions sent through it may never confirm. Compare servers with "npm run demo:servers".';
+}
+
+/** Heights of the other known chipnet servers that answer within a few seconds. */
+export async function otherChipnetHeights(server: string, connect: (host: string) => NetworkProvider & { disconnect?: () => Promise<unknown> }): Promise<Array<{ server: string; height: number }>> {
+  const results = await Promise.all(CHIPNET_SERVERS.filter((s) => s !== server).map(async (host) => {
+    const provider = connect(host);
+    try {
+      const height = await Promise.race([provider.getBlockHeight(), new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))]);
+      return { server: host, height };
+    } catch {
+      return undefined;
+    } finally {
+      await provider.disconnect?.().catch(() => {});
+    }
+  }));
+  return results.filter((r): r is { server: string; height: number } => r !== undefined);
+}
+
 /** Unix time of a block, read from its 80-byte header. */
 export async function blockTime(provider: NetworkProvider, height: number): Promise<number | undefined> {
   if (height <= 0) return undefined;

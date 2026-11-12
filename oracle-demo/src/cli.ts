@@ -18,7 +18,7 @@ import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs
 import { ElectrumNetworkProvider, Network, type NetworkProvider } from 'cashscript';
 import { binToHex, cashAddressToLockingBytecode, decodeTransaction, hexToBin } from '@bitauth/libauth';
 import type { VaultList } from '@backstop/keeper';
-import { CHIPNET_SERVERS, deploymentContracts, history, loadVault, staleServerWarning, tipAgeMinutes, vaultHistory } from '@backstop/contracts';
+import { behindWarning, CHIPNET_SERVERS, otherChipnetHeights, deploymentContracts, history, loadVault, staleServerWarning, tipAgeMinutes, vaultHistory } from '@backstop/contracts';
 import { deployDemo, type DemoDeployment } from './deploy.js';
 import { publishDemoPrice } from './price.js';
 import { setUpDemoVault, vaultStatus, withdrawDemoVault } from './borrower.js';
@@ -73,7 +73,8 @@ async function connect(): Promise<NetworkProvider> {
   } catch (error) {
     throw new Error(`Cannot reach the chipnet Electrum server ${server} (${(error as Error).message}). Run "npm run demo:servers" to compare servers.`);
   }
-  const warning = await staleServerWarning(provider, server);
+  const warning = await staleServerWarning(provider, server)
+    ?? behindWarning(server, await provider.getBlockHeight(), await otherChipnetHeights(server, (host) => new ElectrumNetworkProvider(Network.CHIPNET, { hostname: host })));
   if (warning) console.warn(warning);
   return provider;
 }
@@ -228,6 +229,7 @@ async function main() {
       const genesisTxid = existsSync(deploymentFile) ? readDeployment().demo.genesisTxid : undefined;
       const hosts = [...new Set([server, ...CHIPNET_SERVERS])];
       console.log(`Using ${server}${values.server ? ' (--server)' : process.env.CHIPNET_ELECTRUM_SERVER ? ' (CHIPNET_ELECTRUM_SERVER in .env)' : ' (default)'}\n`);
+      const heights: Array<{ server: string; height: number }> = [];
       for (const host of hosts) {
         const provider = new ElectrumNetworkProvider(Network.CHIPNET, { hostname: host });
         try {
@@ -238,11 +240,16 @@ async function main() {
             const known = await provider.getRawTransaction(genesisTxid).then(() => true, () => false);
             deploymentNote = known ? ' | has your demo deployment' : ' | does NOT have your demo deployment';
           }
+          heights.push({ server: host, height });
           console.log(`${host}: block ${height}, mined ${age === undefined ? '?' : `${age} min`} ago${deploymentNote}`);
         } catch (error) {
           console.log(`${host}: not reachable (${(error as Error).message})`);
         }
         await provider.disconnect().catch(() => {});
+      }
+      for (const { server: host, height } of heights) {
+        const warning = behindWarning(host, height, heights);
+        if (warning) console.log(`\n${warning}`);
       }
       console.log('\nAll tools must use a server that is on the newest block. Set it once in .env: CHIPNET_ELECTRUM_SERVER=<host>');
       return;
