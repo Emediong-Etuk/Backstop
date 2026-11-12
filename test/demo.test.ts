@@ -92,28 +92,32 @@ describe('The demo on a BCHN-like node', () => {
     expect(await vaultStatus({ provider, deployment, setupTxid })).toMatchObject({ empty: expect.stringMatching(/no longer holds the loan key/) });
   });
 
-  it('runs on a tenth of the test BCH at a $3,000 demo price (one 0.05 BCH loan, 0.05 BCH reserve)', async () => {
-    // For when a faucet gives little: Paryon's minimum debt is in dollars ($100), so a higher
-    // demo price shrinks every BCH amount while the ratios, and the story, stay the same.
+  // For when a faucet gives little: Paryon's minimum debt is in dollars ($100), so a higher
+  // demo price shrinks every BCH amount while the ratios, and the story, stay the same.
+  // The second case is a funder and wallet holding only what one 1,000,000-sat faucet request gives.
+  it.each([
+    { label: 'a tenth of the BCH at $3,000', priceCents: 300_000n, sats: 5_000_000n, funderSats: 7_000_000n, borrowerSats: 6_000_000n },
+    { label: 'a hundredth of the BCH at $30,000', priceCents: 3_000_000n, sats: 500_000n, funderSats: 1_017_000n, borrowerSats: 1_000_000n },
+  ])('runs on $label (one loan and a reserve of the same size)', async ({ priceCents, sats, funderSats, borrowerSats }) => {
     const provider = new MemCashProvider();
     let n = 0;
     const fund = (w: typeof funder, sats: bigint) => provider.addUtxo(w.lockingBytecode, { txid: binToHex(sha256.hash(utf8ToBin(`small ${w.pkh} ${++n}`))), vout: 0, satoshis: sats });
-    fund(funder, 7_000_000n);
-    fund(borrower, 6_000_000n);
+    fund(funder, funderSats);
+    fund(borrower, borrowerSats);
     const log = () => {};
 
     const deployment = await deployDemo({
-      provider, funder, oracle, startPriceCents: 300_000n, log,
-      loans: [{ collateralSats: 5_000_000n, debtCents: 11_500n, borrowerLockingBytecode: borrower.lockingBytecode }],
+      provider, funder, oracle, startPriceCents: priceCents, log,
+      loans: [{ collateralSats: sats, debtCents: 11_500n, borrowerLockingBytecode: borrower.lockingBytecode }],
     });
     provider.mine();
     const { setupTxid } = await setUpDemoVault({
-      provider, deployment, borrower, loanKeyCategory: deployment.demo.loans[0].loanKeyCategory, reserveSats: 5_000_000n, cooldownBlocks: 1n,
+      provider, deployment, borrower, loanKeyCategory: deployment.demo.loans[0].loanKeyCategory, reserveSats: sats, cooldownBlocks: 1n,
     });
     provider.mine();
     expect(await vaultStatus({ provider, deployment, setupTxid })).toMatchObject({ ratioBps: 13_043n });
 
-    await publishDemoPrice({ provider, deployment, oracle, funder, priceCents: 265_000n, log });
+    await publishDemoPrice({ provider, deployment, oracle, funder, priceCents: priceCents * 265n / 300n, log });
     provider.mine();
     const [rescue] = await scanOnce({ provider, deployment, setupTxids: [setupTxid], dryRun: false, log });
     expect(rescue.action).toBe('rescued');

@@ -18,7 +18,9 @@ export function SetupScreen({ loan, priceCents, walletBchSats, onProtect }: {
   const suggested = (() => {
     const half = loan.collateralSats / 2n;
     const value = half < available ? half : available;
-    return (value / 1_000_000n) * 1_000_000n; // round down to 0.01 BCH
+    // Round down to a tidy amount: 0.01 BCH, or finer for small loans so it never shows 0.
+    const step = value >= 1_000_000n ? 1_000_000n : value >= 100_000n ? 100_000n : 10_000n;
+    return (value / step) * step;
   })();
 
   const [reserveText, setReserveText] = useState(bch(suggested).replace(' BCH', ''));
