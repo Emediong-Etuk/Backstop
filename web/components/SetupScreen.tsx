@@ -72,8 +72,9 @@ export function SetupScreen({ loan, priceCents, walletBchSats, onProtect }: {
   }
 
   const sliderMax = available > 0n ? Number(available) : 0;
-  const sliderStep = Math.max(1_000, Math.floor(sliderMax / 400));
-  const setReserve = (sats: bigint) => setReserveText(bch(sats).replace(' BCH', ''));
+  // Tidy steps: about a hundredth of the balance's order of magnitude (0.001 BCH for a 1 BCH wallet).
+  const sliderStep = sliderMax > 0 ? Math.max(1_000, 10 ** (Math.floor(Math.log10(sliderMax)) - 2)) : 1_000;
+  const setReserve = (sats: bigint) => setReserveText(bch((sats / BigInt(sliderStep)) * BigInt(sliderStep)).replace(' BCH', ''));
   const presets: Array<[string, bigint]> = [['25%', available / 4n], ['Half', available / 2n], ['Max', available]];
 
   return (
