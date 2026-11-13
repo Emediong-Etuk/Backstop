@@ -17,7 +17,7 @@ No wallet, keys or funds needed for steps 1–4.
 3. **Do:** under **Try to break it**, click **Copy the loan key**. **See:** *Refused*, `Backstop.cash` line 149, and the node rejecting the transaction. Paryon's own contracts would accept this attack; Backstop alone stops it. Try the other two attacks too.
 4. **Do:** click **Price to $265**, then **Run a keeper**. **See:** the loan falls to 115%, a keeper with no keys rescues it, and it is back near 150%, with *Rescued* in the history.
 5. **Do:** open the [rescue on chipnet](https://chipnet.imaginary.cash/tx/24aa5b20a23bcf3910cc72b004307127ee18460c1e5f1f8eb9f7a67a2dc0d399). **See:** the same transaction on the real chain: six inputs (Paryon's four contracts and the two vault outputs), confirmed, nothing signed by the borrower.
-6. **Do:** `npm install && npm test`. **See:** 107 tests pass, every rescue attack run twice: against Paryon's real contracts, and with Paryon's checks removed, failing on Backstop's own `require`.
+6. **Do:** `npm install && npm test`. **See:** 125 tests pass, every rescue attack run twice: against Paryon's real contracts, and with Paryon's checks removed, failing on Backstop's own `require`.
 7. **Do:** read [`docs/MUTATION.md`](docs/MUTATION.md). **See:** each `require` in the contract switched off in turn, and the test that catches it.
 
 ## The problem, in numbers
@@ -71,7 +71,7 @@ npm install
 npm test
 ```
 
-`npm test` compiles the covenant and runs 107 tests. They use **Paryon's real compiled contracts** (`@paryonusd/contracts@1.1.0`), on two networks:
+`npm test` compiles the covenant and runs 125 tests. They use **Paryon's real compiled contracts** (`@paryonusd/contracts@1.1.0`), on two networks:
 
 - CashScript's mock network;
 - `@paryonusd/mem-cash`, an in-memory node that checks relative timelocks, standardness and fees the way BCHN does.

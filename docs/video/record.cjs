@@ -23,6 +23,9 @@ const testsFile = process.env.TESTS_OUTPUT; // verbose vitest output, optional
 const tests = testsFile && fs.existsSync(testsFile)
   ? fs.readFileSync(testsFile, 'utf8').split('\n').filter((l) => l.trim().startsWith('✓')).map((l) => '✓ ' + l.trim().replace(/^✓\s*/, '').split(' > ').pop())
   : [];
+const summary = testsFile && fs.existsSync(testsFile)
+  ? fs.readFileSync(testsFile, 'utf8').split('\n').filter((l) => /^\s*(Test Files|Tests)\s/.test(l)).map((l) => l.replace(/\s+\(\d+\)\s*$/, (m) => m))
+  : [];
 const explorer = (txid) => `https://chipnet.imaginary.cash/tx/${txid}`;
 const RESCUE_TX = '24aa5b20a23bcf3910cc72b004307127ee18460c1e5f1f8eb9f7a67a2dc0d399';
 
@@ -32,7 +35,7 @@ const display = (text) => text
   .replace(/check data sig/g, 'checkDataSig')
   .replace(/Owner spend/g, 'ownerSpend').replace(/Owner withdraw/g, 'ownerWithdraw')
   .replace(/one hundred and ten percent/g, '110%').replace(/one hundred and fifteen percent/g, '115%')
-  .replace(/one hundred and fifty percent/g, '150%').replace(/one hundred and three/g, '103')
+  .replace(/one hundred and fifty percent/g, '150%').replace(/one hundred and twenty-five/g, '125')
   .replace(/three a\.m\./g, '3am.').replace(/inputs four and five/g, 'inputs 4 and 5')
   .replace(/positions four and five/g, 'positions 4 and 5').replace(/zero to four/g, '0 to 4')
   .replace(/index five/g, 'index 5').replace(/input zero/g, 'input 0');
@@ -93,6 +96,7 @@ const server = http.createServer((req, res) => {
 const overlay = `
   window.__BACKSTOP_SOURCE = ${JSON.stringify(source)};
   window.__BACKSTOP_TESTS = ${JSON.stringify(tests)};
+  window.__BACKSTOP_SUMMARY = ${JSON.stringify(summary)};
   addEventListener('DOMContentLoaded', () => {
     const style = document.createElement('style');
     style.textContent = \`
@@ -430,7 +434,7 @@ const technical = [
     await wait(600);
     const lines = chunk(text('technical', 't7-tests'));
     const total = lines.reduce((s, l) => s + readSeconds(l), 0) * 1000;
-    await page.evaluate((ms) => { window.playTests(ms); setTimeout(() => window.countTo(103, ms * 0.9), 300); }, total * 0.85);
+    await page.evaluate((ms) => { window.playTests(ms); setTimeout(() => window.countTo(window.__BACKSTOP_TESTS.length, ms * 0.9), 300); }, total * 0.85);
     await say('technical', 't7-tests');
     await wait(1200);
   },

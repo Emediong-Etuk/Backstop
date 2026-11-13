@@ -114,13 +114,13 @@ So none of these depends on Paryon catching the same mistake. Deleting a `requir
 | smuggle in extra inputs (other tokens or authority) | 60 | an extra input smuggled into the rescue |
 | add outputs that siphon value or carry tokens | 62 | an extra output siphoning value |
 | use vault UTXOs anywhere but positions 4 and 5, or from different vaults | 54, 56, 66 | vault inputs placed anywhere but positions 4 and 5; `owner.test.ts`: nobody can take the reserve alone by calling the rescue path |
-| use some other loan's key, or swap key and reserve | 68, 70 | vault inputs placed anywhere but positions 4 and 5 |
+| use some other loan's key, or swap key and reserve | 68, 70 | vault inputs placed anywhere but positions 4 and 5; a reserve input carrying tokens (the rescue would burn them) |
 | run again before the cooldown | 75 (plus BIP68 at the node) | a rescue before the cooldown has passed; `node.test.ts`: the node refuses a rescue until the reserve is as old as the cooldown |
-| use a fake price | 79, 81, 89 | a fake price contract reporting a low price |
-| let a (migrated) price contract leak tokens or change state | 83–86 | (shape covered by every accepted rescue; no dedicated attack test) |
+| use a fake price | 79, 81, 89 | a fake price contract reporting a low price; a Paryon loan passed off as the price contract |
+| let a (migrated) price contract leak tokens or change state | 83–86 | the price contract coming back at another address; …without its token; …with a different price; the price contract carrying tokens out of the rescue |
 | top up someone else's loan | 94–99 | the top-up going into somebody else's loan |
 | move the loan, raise its debt, repay with outside PUSD, or change its interest manager | 102–107 | a keeper increasing the loan's debt; a keeper making themselves the loan's interest manager |
-| move or alter the sidecar | 109–111 | (Paryon also enforces this, `LoanSidecar.cash:21-24`; no dedicated attack test) |
+| move or alter the sidecar | 109–111 | the sidecar being moved; the sidecar losing its token; the sidecar coming back with a changed commitment |
 | replace Paryon's manage function with another contract | 115–117 | some other contract standing in for Paryon's manage function |
 | hide a key copy in the manage function's output | 119–121 | a keeper hiding a copy of the loan key in the manage function output |
 | withdraw collateral | 128 | a keeper withdrawing collateral with the key |

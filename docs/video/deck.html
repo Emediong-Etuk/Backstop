@@ -176,7 +176,7 @@
     <div class="logo in"><svg width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="#04140d" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v5.5c0 4.6 3.1 8.4 7.5 9.5 4.4-1.1 7.5-4.9 7.5-9.5V6L12 3Z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></div>
     <h1 class="in d1">Backstop <span class="grad">under the hood</span></h1>
     <p class="in d2 muted">Technical walkthrough: the vault, the three transactions, every guarantee as a <code style="color:var(--accent)">require</code></p>
-    <div class="tags in d3"><span class="pill">contracts/Backstop.cash</span><span class="pill">103 tests</span><span class="pill">Run on chipnet</span></div>
+    <div class="tags in d3"><span class="pill">contracts/Backstop.cash</span><span class="pill"><span class="testtotal">all</span> tests</span><span class="pill">Run on chipnet</span></div>
   </div>
 </section>
 
@@ -398,7 +398,7 @@
       while (body.children.length > 18) body.removeChild(body.firstChild);
       await new Promise((r) => setTimeout(r, step));
     }
-    for (const s of ['', ' Test Files  13 passed (13)', '      Tests  103 passed (103)']) {
+    for (const s of ['', ...(window.__BACKSTOP_SUMMARY || [])]) {
       const div = document.createElement('div'); div.textContent = s; div.className = 'sum'; body.appendChild(div);
       while (body.children.length > 18) body.removeChild(body.firstChild);
     }
@@ -409,6 +409,8 @@
     const tick = (now) => { const t = Math.min(1, (now - start) / ms); el.textContent = Math.round(n * (1 - Math.pow(1 - t, 3))); if (t < 1) requestAnimationFrame(tick); };
     requestAnimationFrame(tick);
   };
+  // Test totals come from the replayed test run, never typed in.
+  addEventListener('DOMContentLoaded', () => document.querySelectorAll('.testtotal').forEach((el) => { el.textContent = String(TESTS.length || 'all'); }));
   window.show = (id) => {
     document.querySelectorAll('.slide').forEach((s) => s.classList.toggle('on', s.id === id));
     const slide = document.getElementById(id);
