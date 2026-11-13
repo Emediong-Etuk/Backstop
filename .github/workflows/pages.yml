@@ -31,6 +31,8 @@ jobs:
       - run: npm run web:build
         env:
           CHIPNET_ELECTRUM_SERVER: chipnet.imaginary.cash
+      # The submission videos, playable from the site.
+      - run: mkdir -p web/out/media && cp docs/video/media/*.mp4 web/out/media/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
