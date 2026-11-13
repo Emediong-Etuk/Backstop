@@ -64,7 +64,19 @@ function chunk(text) {
   }
   return out;
 }
-const readSeconds = (line) => Math.max(2.0, line.split(/\s+/).length * 0.34 + 0.55);
+// With a voice (KOKORO_DIR set), each caption stays up for its spoken length; without, for reading time.
+const spokenSeconds = {};
+const readSeconds = (line) => spokenSeconds[line] !== undefined
+  ? spokenSeconds[line] + 0.4
+  : Math.max(2.0, line.split(/\s+/).length * 0.34 + 0.55);
+const voiceCache = path.join(outDir, 'voice-cache');
+const withVoice = !!process.env.KOKORO_DIR;
+function speakAll(lines) {
+  const file = path.join(outDir, 'lines.json');
+  fs.writeFileSync(file, JSON.stringify([...new Set(lines)]));
+  const out = execFileSync('python3', [path.join(__dirname, 'voice.py'), 'synth', file, voiceCache], { maxBuffer: 1 << 24, stdio: ['ignore', 'pipe', 'inherit'] });
+  Object.assign(spokenSeconds, JSON.parse(out.toString()));
+}
 const text = (video, id) => narration[video].find((s) => s.id === id).text;
 
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json' };
@@ -116,7 +128,8 @@ const overlay = `
   });
 `;
 
-async function record(name, scenes) {
+async function record(name, scenes, lines = []) {
+  if (withVoice) speakAll(lines);
   const browser = await chromium.launch({
     proxy: process.env.HTTPS_PROXY ? { server: process.env.HTTPS_PROXY, bypass: '127.0.0.1,localhost' } : undefined,
   });
@@ -225,7 +238,7 @@ async function record(name, scenes) {
   list.push(`file '${last}'`);
   const listFile = path.join(framesDir, 'frames.txt');
   fs.writeFileSync(listFile, list.join('\n') + '\n');
-  const mp4 = path.join(outDir, `${name}.mp4`);
+  const mp4 = path.join(outDir, withVoice ? `${name}-silent.mp4` : `${name}.mp4`);
   execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', listFile,
     '-vf', 'fps=30,scale=1920:1080:flags=lanczos,format=yuv420p', '-c:v', 'libx264', '-preset', 'slow', '-crf', '17',
     '-movflags', '+faststart', '-an', mp4]);
@@ -233,8 +246,14 @@ async function record(name, scenes) {
   const stamp = (ms) => { ms = Math.max(0, Math.round(ms - removedBefore(ms))); const h = Math.floor(ms / 3600000), m = Math.floor(ms / 60000) % 60, s = Math.floor(ms / 1000) % 60;
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')},${String(ms % 1000).padStart(3, '0')}`; };
   fs.writeFileSync(path.join(outDir, `${name}.srt`), srt.map((e, i) => `${i + 1}\n${stamp(e.start)} --> ${stamp(e.end)}\n${e.text}\n`).join('\n'));
-  const seconds = Number(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', mp4]).toString());
-  console.log(`${name}: ${mp4} (${Math.floor(seconds / 60)}:${String(Math.round(seconds % 60)).padStart(2, '0')})`);
+  let final = mp4;
+  if (withVoice) {
+    final = path.join(outDir, `${name}.mp4`);
+    execFileSync('python3', [path.join(__dirname, 'voice.py'), 'mix', mp4, path.join(outDir, `${name}.srt`), voiceCache, final], { stdio: 'inherit' });
+    fs.rmSync(mp4);
+  }
+  const seconds = Number(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', final]).toString());
+  console.log(`${name}: ${final} (${Math.floor(seconds / 60)}:${String(Math.round(seconds % 60)).padStart(2, '0')})${withVoice ? ', with voice-over' : ''}`);
 }
 
 // ---------------------------------------------------------------- the pitch (about two minutes)
@@ -428,7 +447,11 @@ const technical = [
 (async () => {
   fs.mkdirSync(outDir, { recursive: true });
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
-  if (!only || only === 'pitch') await record('backstop-pitch', pitch);
-  if (!only || only === 'technical') await record('backstop-technical-walkthrough', technical);
+  const linesOf = (video) => narration[video].flatMap((scene) => chunk(scene.text));
+  if (!only || only === 'pitch') await record('backstop-pitch', pitch, linesOf('pitch'));
+  if (!only || only === 'technical') {
+    await record('backstop-technical-walkthrough', technical,
+      [...linesOf('technical'), ...rescueLines.map(([l]) => l), ...withdrawLines.map(([l]) => l)]);
+  }
   server.close();
 })().catch((e) => { console.error(e); server.close(); process.exit(1); });
