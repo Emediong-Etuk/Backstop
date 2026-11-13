@@ -3,7 +3,8 @@
 //   node test/mutation.mjs            (from the repository root; takes about half an hour)
 //
 // For every require it recompiles the contract without that line and runs the behaviour tests,
-// stopping at the first failure. It records which test caught the deletion, or that none did, and
+// stopping at the first failure: first the attack tests (fast, on the mock network), and only if
+// none fails, the rest, which run on the in-memory node. It records which test caught the deletion, or that none did, and
 // writes docs/MUTATION.md. The original contract is restored at the end, even on error.
 // test/xo.test.ts is left out: it compares the XO template with the compiled bytecode, so it would
 // fail for every change and prove nothing about behaviour.
@@ -16,8 +17,11 @@ const root = resolve(import.meta.dirname, '..');
 const contract = join(root, 'contracts', 'Backstop.cash');
 const original = readFileSync(contract, 'utf8');
 const lines = original.split('\n');
-const behaviourTests = ['rescue', 'owner', 'setup', 'node', 'story', 'keeper', 'demo', 'lookups', 'price', 'wizardconnect']
-  .map((name) => `${name}.test.ts`);
+const stages = [
+  ['rescue', 'owner', 'attacks'],
+  ['setup', 'node', 'story', 'keeper', 'demo', 'lookups', 'price', 'wizardconnect'],
+].map((names) => names.map((name) => `${name}.test.ts`));
+const behaviourTests = stages.flat();
 
 const compile = () => spawnSync('node', [join(root, 'contracts', 'scripts', 'compile.mjs')], { encoding: 'utf8' });
 const functionAt = (index) => {
@@ -42,19 +46,22 @@ try {
     if (built.status !== 0) {
       result = { outcome: 'compiler', detail: (built.stderr || built.stdout).split('\n').find((l) => l.trim()) ?? 'compile error' };
     } else {
-      const report = join(scratch, `${n}.json`);
-      spawnSync('npx', ['vitest', 'run', '--bail=1', '--reporter=json', `--outputFile=${report}`, ...behaviourTests],
-        { cwd: join(root, 'test'), encoding: 'utf8', timeout: 15 * 60 * 1000 });
       let failed;
-      try {
-        const json = JSON.parse(readFileSync(report, 'utf8'));
-        for (const file of json.testResults ?? []) {
-          for (const test of file.assertionResults ?? []) {
-            if (test.status === 'failed' && !failed) failed = { name: test.fullName ?? test.title, file: file.name.split('/').pop() };
+      for (const [k, files] of stages.entries()) {
+        const report = join(scratch, `${n}-${k}.json`);
+        spawnSync('npx', ['vitest', 'run', '--bail=1', '--reporter=json', `--outputFile=${report}`, ...files],
+          { cwd: join(root, 'test'), encoding: 'utf8', timeout: 15 * 60 * 1000 });
+        try {
+          const json = JSON.parse(readFileSync(report, 'utf8'));
+          for (const file of json.testResults ?? []) {
+            for (const test of file.assertionResults ?? []) {
+              if (test.status === 'failed' && !failed) failed = { name: test.fullName ?? test.title, file: file.name.split('/').pop() };
+            }
           }
+        } catch {
+          failed = { name: 'test run did not complete', file: '' };
         }
-      } catch {
-        failed = { name: 'test run did not complete', file: '' };
+        if (failed) break;
       }
       result = failed ? { outcome: 'caught', detail: `${failed.file}: ${failed.name}` } : { outcome: 'survived', detail: 'no test failed' };
     }
