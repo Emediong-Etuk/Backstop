@@ -85,7 +85,8 @@ const overlay = `
     const style = document.createElement('style');
     style.textContent = \`
       #__cursor { position: fixed; z-index: 2147483647; width: 22px; height: 22px; margin: -3px 0 0 -3px; pointer-events: none;
-        transition: transform 0.12s; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); left: -100px; top: -100px; }
+        transition: transform 0.12s, opacity 0.2s; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); left: -100px; top: -100px; opacity: 0; }
+      #__cursor.seen { opacity: 1; }
       #__cursor.down { transform: scale(0.85); }
       .__ripple { position: fixed; z-index: 2147483646; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%;
         border: 3px solid #34d399; pointer-events: none; animation: __rip 0.6s ease-out forwards; }
@@ -104,7 +105,7 @@ const overlay = `
     const cap = document.createElement('div');
     cap.id = '__cap';
     document.body.appendChild(cap);
-    addEventListener('mousemove', (e) => { cursor.style.left = e.clientX + 'px'; cursor.style.top = e.clientY + 'px'; }, true);
+    addEventListener('mousemove', (e) => { cursor.classList.add('seen'); cursor.style.left = e.clientX + 'px'; cursor.style.top = e.clientY + 'px'; }, true);
     addEventListener('mousedown', (e) => {
       cursor.classList.add('down');
       const r = document.createElement('div'); r.className = '__ripple'; r.style.left = e.clientX + 'px'; r.style.top = e.clientY + 'px';
