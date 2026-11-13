@@ -8,9 +8,9 @@
     <filter id="glow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="22"/></filter>
     <clipPath id="frontClip"><path d="M236 96 L364 142 V238 C364 322 312 386 236 414 C160 386 108 322 108 238 V142 Z"/></clipPath>
   </defs>
-  <rect width="512" height="512" rx="120" fill="url(#bgA)"/>
-  <rect width="512" height="512" rx="120" fill="url(#bgB)"/>
-  <rect x="1.5" y="1.5" width="509" height="509" rx="118.5" fill="none" stroke="#fff" stroke-opacity="0.09" stroke-width="3"/>
+  <rect width="512" height="512" fill="url(#bgA)"/>
+  <rect width="512" height="512" fill="url(#bgB)"/>
+  <rect x="1.5" y="1.5" width="509" height="509" fill="none" stroke="#fff" stroke-opacity="0.09" stroke-width="3"/>
   <!-- the backstop: a second layer behind -->
   <path d="M286 118 L410 162 V254 C410 334 360 396 286 424 C212 396 162 334 162 254 V162 Z" fill="none" stroke="url(#back)" stroke-width="14" stroke-linejoin="round"/>
   <!-- glow -->

@@ -135,8 +135,8 @@ strong { font-weight: 650; }
   display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
 }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.15rem; letter-spacing: -0.02em; }
-.brand-mark { display: grid; place-items: center; border-radius: 10px; box-shadow: var(--glow); animation: breathe 4s ease-in-out infinite; }
-.brand-mark img { display: block; border-radius: 9px; }
+.brand-mark { display: grid; place-items: center; box-shadow: var(--glow); animation: breathe 4s ease-in-out infinite; }
+.brand-mark img { display: block; }
 @keyframes breathe { 50% { box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.35), 0 10px 50px -6px rgba(52, 211, 153, 0.6); } }
 .topbar-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
@@ -652,7 +652,7 @@ details[open] summary::before { transform: rotate(45deg); }
 
 footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); font-size: 0.85rem; color: var(--text-muted); }
 .brand-mini { display: flex; align-items: center; gap: 6px; font-weight: 750; color: var(--text); margin-bottom: 6px; }
-.brand-mini img { border-radius: 5px; }
+.brand-mini img { display: block; }
 
 /* ---------- motion preferences ---------- */
 
