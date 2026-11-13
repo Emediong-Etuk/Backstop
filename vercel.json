@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "npm ci",
+  "buildCommand": "npm run web:build && mkdir -p web/out/media && cp docs/video/media/*.mp4 web/out/media/",
+  "outputDirectory": "web/out"
+}
