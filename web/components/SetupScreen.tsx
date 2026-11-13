@@ -3,7 +3,9 @@ import { useMemo, useState } from 'react';
 import { DEFAULT_RULES, priceAtRatio, validateParams } from '@backstop/contracts';
 import type { LoanView, ProtectionChoices } from '../lib/actions';
 import { bch, blocksAsTime, parseBch, percent, usd, usdOf } from '../lib/format';
-import { HealthBar } from './Health';
+import { HealthBar, HealthGauge } from './Health';
+import { PriceScale } from './PriceScale';
+import { Icon, Tween } from './ui';
 
 const FEE_RESERVE_SATS = 3_000n; // what the setup transaction itself needs, roughly
 const COOLDOWNS = [1n, 6n, 24n];
@@ -69,40 +71,80 @@ export function SetupScreen({ loan, priceCents, walletBchSats, onProtect }: {
     }
   }
 
+  const sliderMax = available > 0n ? Number(available) : 0;
+  const sliderStep = Math.max(1_000, Math.floor(sliderMax / 400));
+  const setReserve = (sats: bigint) => setReserveText(bch(sats).replace(' BCH', ''));
+  const presets: Array<[string, bigint]> = [['25%', available / 4n], ['Half', available / 2n], ['Max', available]];
+
   return (
-    <>
-      <div className="card">
-        <h2>Your loan</h2>
+    <div className="screen">
+      <div className="card loan-card">
+        <div className="loan-head">
+          <div>
+            <span className="eyebrow"><Icon name="shield" size={14} /> ParyonUSD loan</span>
+            <h2>Your loan</h2>
+            <p className="muted">Liquidated if BCH falls below <strong className="text-danger">{usd(loan.liquidationPriceCents)}</strong>. BCH is {usd(priceCents)} now.</p>
+          </div>
+          <HealthGauge ratioBps={loan.ratioBps} triggerBps={trigger} targetBps={target} size={220} />
+        </div>
         <div className="stats">
-          <div className="stat"><div className="label">Collateral</div><div className="value">{bch(loan.collateralSats)}</div><div className="sub">{usdOf(loan.collateralSats, priceCents)}</div></div>
-          <div className="stat"><div className="label">Borrowed</div><div className="value">{usd(loan.debtCents)}</div><div className="sub">ParyonUSD</div></div>
-          <div className="stat"><div className="label">Health</div><div className="value">{percent(loan.ratioBps)}</div><div className="sub">collateral ÷ borrowed</div></div>
-          <div className="stat"><div className="label">Liquidated if BCH falls below</div><div className="value">{usd(loan.liquidationPriceCents)}</div><div className="sub">now {usd(priceCents)}</div></div>
+          <div className="stat"><Icon name="coins" className="stat-icon" /><div className="label">Collateral</div><div className="value"><Tween value={loan.collateralSats} format={(v) => bch(v)} /></div><div className="sub">{usdOf(loan.collateralSats, priceCents)}</div></div>
+          <div className="stat"><Icon name="wallet" className="stat-icon" /><div className="label">Borrowed</div><div className="value">{usd(loan.debtCents)}</div><div className="sub">ParyonUSD</div></div>
+          <div className="stat"><Icon name="chart" className="stat-icon" /><div className="label">Health</div><div className="value"><Tween value={loan.ratioBps} format={percent} /></div><div className="sub">collateral ÷ borrowed</div></div>
+          <div className="stat"><Icon name="alert" className="stat-icon danger" /><div className="label">Liquidated if BCH falls below</div><div className="value">{usd(loan.liquidationPriceCents)}</div><div className="sub">now {usd(priceCents)}</div></div>
         </div>
         <HealthBar ratioBps={loan.ratioBps} triggerBps={trigger} targetBps={target} />
       </div>
 
-      <div className="card">
-        <h2>Protect it</h2>
+      <div className="card protect-card">
+        <div className="card-head">
+          <span className="badge-icon"><Icon name="shield" /></span>
+          <div>
+            <h2>Protect it</h2>
+            <p className="muted">Pick a reserve and the rules. You can change your mind any time by withdrawing.</p>
+          </div>
+        </div>
+
         <div className="field">
           <label htmlFor="reserve">Reserve</label>
-          <input id="reserve" inputMode="decimal" value={reserveText} onChange={(e) => setReserveText(e.target.value)} aria-describedby="reserve-hint" />
+          <div className="amount">
+            <input id="reserve" inputMode="decimal" value={reserveText} onChange={(e) => setReserveText(e.target.value)} aria-describedby="reserve-hint" />
+            <span className="amount-unit">BCH</span>
+          </div>
+          {sliderMax > 0 && (
+            <input type="range" className="slider" aria-label="Reserve amount" min={0} max={sliderMax} step={sliderStep}
+              value={Math.min(sliderMax, Number(reserveSats ?? 0n))}
+              style={{ ['--fill' as string]: `${sliderMax ? Math.min(100, (Number(reserveSats ?? 0n) / sliderMax) * 100) : 0}%` }}
+              onChange={(e) => setReserve(BigInt(e.target.value))} />
+          )}
+          <div className="presets">
+            {presets.map(([label, sats]) => (
+              <button key={label} type="button" className={`chip ${reserveSats === sats ? 'active' : ''}`} disabled={sats <= 0n} onClick={() => setReserve(sats)}>{label}</button>
+            ))}
+          </div>
           <div className="hint" id="reserve-hint">
             BCH kept ready for rescues{reserveSats ? `, worth ${usdOf(reserveSats, priceCents)} today` : ''}. You have {bch(available)} available.
           </div>
         </div>
+
+        <PriceScale priceCents={priceCents} liquidationCents={loan.liquidationPriceCents} protectedToCents={safeDownTo} rescueCents={triggerPrice} />
+
         <div className="row">
           <div className="field">
-            <label htmlFor="trigger">Rescue when health falls below</label>
-            <select id="trigger" value={trigger.toString()} onChange={(e) => setTrigger(BigInt(e.target.value))}>
-              {[12_000n, 12_500n, 13_000n, 14_000n].map((v) => <option key={v.toString()} value={v.toString()}>{percent(v)}</option>)}
-            </select>
+            <span className="label-text" id="trigger-label">Rescue when health falls below</span>
+            <div className="segmented" role="group" aria-labelledby="trigger-label">
+              {[12_000n, 12_500n, 13_000n, 14_000n].map((v) => (
+                <button key={v.toString()} type="button" aria-pressed={trigger === v} className={trigger === v ? 'active' : ''} onClick={() => setTrigger(v)}>{percent(v)}</button>
+              ))}
+            </div>
           </div>
           <div className="field">
-            <label htmlFor="target">and bring it back up to</label>
-            <select id="target" value={target.toString()} onChange={(e) => setTarget(BigInt(e.target.value))}>
-              {[14_000n, 15_000n, 17_500n, 20_000n].map((v) => <option key={v.toString()} value={v.toString()}>{percent(v)}</option>)}
-            </select>
+            <span className="label-text" id="target-label">and bring it back up to</span>
+            <div className="segmented" role="group" aria-labelledby="target-label">
+              {[14_000n, 15_000n, 17_500n, 20_000n].map((v) => (
+                <button key={v.toString()} type="button" aria-pressed={target === v} className={target === v ? 'active' : ''} onClick={() => setTarget(v)}>{percent(v)}</button>
+              ))}
+            </div>
           </div>
         </div>
         <details>
@@ -122,20 +164,22 @@ export function SetupScreen({ loan, priceCents, walletBchSats, onProtect }: {
           </div>
         </details>
 
-        <div className="summary">
-          <p><strong>What happens:</strong> if BCH falls below <strong>{usd(triggerPrice)}</strong> (your loan at {percent(trigger)}), up to <strong>{maxTopUpSats ? bch(maxTopUpSats) : '…'}</strong> from your reserve moves into your loan, bringing it back to at most {percent(target)}.</p>
-          <p>Each rescue pays at most {bch(maxOverheadSats)} ({usdOf(maxOverheadSats, priceCents)}) in network fee and reward to whoever sends it, taken from your reserve. Rescues are at least {blocksAsTime(cooldown)} apart.</p>
-          <p>With this reserve your loan can absorb a fall to about <strong>{usd(safeDownTo)}</strong> per BCH before liquidation, instead of {usd(loan.liquidationPriceCents)}.</p>
-          <p>Your loan key and reserve move into your Backstop vault. Only your wallet can take them out, and no one else can move your BCH anywhere except into your own loan.</p>
-        </div>
+        <ul className="summary">
+          <li><Icon name="bolt" /><span>If BCH falls below <strong>{usd(triggerPrice)}</strong> (your loan at {percent(trigger)}), up to <strong>{maxTopUpSats ? bch(maxTopUpSats) : '…'}</strong> from your reserve moves into your loan, bringing it back to at most {percent(target)}.</span></li>
+          <li><Icon name="coins" /><span>Each rescue pays at most {bch(maxOverheadSats)} ({usdOf(maxOverheadSats, priceCents)}) in network fee and reward to whoever sends it, taken from your reserve. Rescues are at least {blocksAsTime(cooldown)} apart.</span></li>
+          <li><Icon name="chart" /><span>With this reserve your loan can absorb a fall to about <strong>{usd(safeDownTo)}</strong> per BCH before liquidation, instead of {usd(loan.liquidationPriceCents)}.</span></li>
+          <li><Icon name="lock" /><span>Your loan key and reserve move into your Backstop vault. Only your wallet can take them out, and no one else can move your BCH anywhere except into your own loan.</span></li>
+        </ul>
         {alreadyBelow && <p className="banner">Your loan is already below {percent(trigger)}. A rescue can happen as soon as the setup is confirmed.</p>}
         {problem && reserveText !== '' && <p className="banner error" role="alert">{problem}</p>}
         {error && <p className="banner error" role="alert">{error}</p>}
         <div className="actions">
-          <button onClick={submit} disabled={busy || problem !== undefined}>{busy ? 'Approve in your wallet…' : 'Protect my loan'}</button>
+          <button className="primary big" onClick={submit} disabled={busy || problem !== undefined}>
+            {busy ? <><span className="spinner" /> Approve in your wallet…</> : <><Icon name="shield" size={18} /> Protect my loan</>}
+          </button>
           <span className="muted small">One signature. You can withdraw everything at any time.</span>
         </div>
       </div>
-    </>
+    </div>
   );
 }

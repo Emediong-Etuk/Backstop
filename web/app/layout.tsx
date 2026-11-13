@@ -7,12 +7,24 @@ export const metadata: Metadata = {
   icons: { icon: 'icon.svg' },
 };
 
-export const viewport: Viewport = { width: 'device-width', initialScale: 1 };
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: [
+    { media: '(prefers-color-scheme: dark)', color: '#070b10' },
+    { media: '(prefers-color-scheme: light)', color: '#f4f7fb' },
+  ],
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {/* Slowly drifting colour behind everything. Decorative only. */}
+        <div className="aurora" aria-hidden="true"><span /><span /><span /></div>
+        <div className="grain" aria-hidden="true" />
+        {children}
+      </body>
     </html>
   );
 }
