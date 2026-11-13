@@ -4,7 +4,7 @@
 
 **A pre-funded rescue for ParyonUSD loans on Bitcoin Cash.** The borrower puts their loan key and a BCH reserve into a vault, once. When the loan nears liquidation, **anyone** can send a rescue that moves part of the reserve into the borrower's own loan, with no signature from the borrower. One rule is enforced by the covenant itself: **the reserve can only ever go into this borrower's own loan, within the limits they set.** It has run end to end on chipnet.
 
-**[Try it live](https://emediong-etuk.github.io/Backstop/?preview)** (no wallet needed) · **[Pitch video, 2 min](docs/video/media/backstop-pitch.mp4)** · **[Technical walkthrough, 4 min](docs/video/media/backstop-technical-walkthrough.mp4)** · BCH BLAZE 2026
+**[Try it live](https://backstop-ten.vercel.app/?preview)** (no wallet needed) · **[Pitch video, 2 min](docs/video/media/backstop-pitch.mp4)** · **[Technical walkthrough, 4 min](docs/video/media/backstop-technical-walkthrough.mp4)** · BCH BLAZE 2026
 
 ![A rescue has just landed: the loan is back near 150%](docs/images/rescued.png)
 
@@ -12,7 +12,7 @@
 
 No wallet, keys or funds needed for steps 1–4.
 
-1. **Do:** open the [live preview](https://emediong-etuk.github.io/Backstop/?preview). **See:** a demo ParyonUSD loan at 130% (0.5 BCH for $115 at $300/BCH, liquidated below $253) and a test wallet, on a test chain inside the page.
+1. **Do:** open the [live preview](https://backstop-ten.vercel.app/?preview). **See:** a demo ParyonUSD loan at 130% (0.5 BCH for $115 at $300/BCH, liquidated below $253) and a test wallet, on a test chain inside the page.
 2. **Do:** click **Protect my loan**. **See:** the loan key and a reserve move into the vault, with one signature (signed by the test wallet).
 3. **Do:** under **Try to break it**, click **Copy the loan key**. **See:** *Refused*, `Backstop.cash` line 149, and the node rejecting the transaction. Paryon's own contracts would accept this attack; Backstop alone stops it. Try the other two attacks too.
 4. **Do:** click **Price to $265**, then **Run a keeper**. **See:** the loan falls to 115%, a keeper with no keys rescues it, and it is back near 150%, with *Rescued* in the history.
