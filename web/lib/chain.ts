@@ -23,7 +23,7 @@ export class NoDeploymentError extends Error {}
  * exactly when the user is approving something in their wallet's tab: the app's next chain
  * lookup then fails with "Failed to connect to '<server>'".
  */
-export function chipnetProvider(server = 'chipnet.bch.ninja'): ElectrumNetworkProvider {
+export function chipnetProvider(server = 'chipnet.imaginary.cash'): ElectrumNetworkProvider {
   const socket = new ElectrumWebSocket(server, { enforceConsistentBrowserBehavior: false });
   const electrum = new ElectrumClient('Backstop', '1.5.0', socket);
   return new ElectrumNetworkProvider(Network.CHIPNET, { electrum });
@@ -33,7 +33,7 @@ export async function connectChipnet(): Promise<Chain> {
   const response = await fetch('deployment.json', { cache: 'no-store' }).catch(() => undefined);
   if (!response?.ok) throw new NoDeploymentError('No chipnet deployment is configured for this site yet.');
   const deployment = (await response.json()) as Deployment;
-  const server = process.env.NEXT_PUBLIC_ELECTRUM_SERVER || 'chipnet.bch.ninja';
+  const server = process.env.NEXT_PUBLIC_ELECTRUM_SERVER || 'chipnet.imaginary.cash';
   const provider = chipnetProvider(server);
   return {
     kind: 'chipnet', provider, server, deployment, paryon: paryonContracts(provider, deployment),

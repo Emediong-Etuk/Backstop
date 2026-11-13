@@ -41,7 +41,7 @@ export async function currentPriceCents(chain: Chain): Promise<bigint> {
   if (!threads[0]) {
     throw new Error(chain.server
       ? `The demo price feed was not found on ${chain.server}. That server may not have the demo deployment: `
-        + 'use the server "npm run demo:deploy" used (chipnet.bch.ninja unless you passed --server), '
+        + 'use the server "npm run demo:deploy" used (chipnet.imaginary.cash unless you passed --server), '
         + 'and check the deployment with "npm run demo:status".'
       : 'The price feed could not be read.');
   }

@@ -1,6 +1,7 @@
 {
   "name": "backstop",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "workspaces": [
     "contracts",

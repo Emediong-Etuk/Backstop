@@ -10,7 +10,7 @@
 //   npm run demo:servers                      compare chipnet Electrum servers (are they in sync?)
 //   npm run demo:fund -- --to <address> --amount 0.004   send the funder's spare BCH to a wallet
 //
-// Every command uses CHIPNET_ELECTRUM_SERVER from .env, or --server, or chipnet.bch.ninja.
+// Every command uses --server, or CHIPNET_ELECTRUM_SERVER from .env, or chipnet.imaginary.cash.
 //
 // All amounts are BCH; prices are US dollars per BCH.
 import { parseArgs } from 'node:util';
@@ -67,7 +67,7 @@ const { values } = parseArgs({
   },
 });
 
-const server = values.server || process.env.CHIPNET_ELECTRUM_SERVER || 'chipnet.bch.ninja';
+const server = values.server || process.env.CHIPNET_ELECTRUM_SERVER || 'chipnet.imaginary.cash';
 
 async function connect(): Promise<NetworkProvider> {
   const provider = new ElectrumNetworkProvider(Network.CHIPNET, { hostname: server });
