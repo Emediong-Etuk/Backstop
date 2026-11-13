@@ -1,0 +1,24 @@
+{
+  "network": "chipnet",
+  "label": "Backstop DEMO deployment of Paryon's unmodified add-collateral contracts, DEMO oracle key",
+  "paryonTokenId": "1deb6a4d5344edd814e693a16c889f12b5738628f731779f8af2741f3e0a27a2",
+  "oraclePublicKey": "02e3d7279f6fd1756f614dbd2ba6e31d8caf77c6588eb0254528ed04388e69d85e",
+  "migrationKeyCategory": "918b8fcd683c8d32335a593c36af1c574bd41ab02ff4dbaa6f9700b9d3fb751d",
+  "demo": {
+    "createdAt": "2026-11-12T23:42:41.625Z",
+    "genesisTxid": "b6bdb31f8622c03ad0eb3ac1ae686f66afce6586e5a5f1e74d082d2224d8e67f",
+    "startPriceCents": "3000000",
+    "priceThreads": 1,
+    "manageThreads": 3,
+    "loans": [
+      {
+        "collateralSats": "500000",
+        "debtCents": "11500",
+        "borrowerLockingBytecode": "76a914e0b5491ba51753438da9b4a076ba70d9350103a388ac",
+        "loanKeyCategory": "169c117166f30685da9b11229260fa6bb9cf7189753b64b23380e485fc38ab80",
+        "genesisTxid": "b6bdb31f8622c03ad0eb3ac1ae686f66afce6586e5a5f1e74d082d2224d8e67f",
+        "loanVout": 4
+      }
+    ]
+  }
+}
