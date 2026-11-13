@@ -253,7 +253,7 @@ To build the site:
 npm run web:build
 ```
 
-This writes `web/out/`, which you can host anywhere; `.github/workflows/pages.yml` publishes it to GitHub Pages on every push to `main`. It reads `deployment.json` next to `index.html` at runtime. Configuration is in `.env` (see `.env.example`): `NEXT_PUBLIC_WC_PROJECT_ID` (free from https://dashboard.reown.com) and optionally `CHIPNET_ELECTRUM_SERVER`.
+This writes `web/out/`, which you can host anywhere. `vercel.json` deploys it on Vercel (with the two videos under `/media/`); `.github/workflows/pages.yml` is a manual GitHub Pages alternative. It reads `deployment.json` next to `index.html` at runtime. Configuration is in `.env` (see `.env.example`): `NEXT_PUBLIC_WC_PROJECT_ID` (free from https://dashboard.reown.com) and optionally `CHIPNET_ELECTRUM_SERVER`.
 
 ## XO template
 
