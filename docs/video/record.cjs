@@ -68,9 +68,11 @@ function chunk(text) {
   return out;
 }
 // With a voice (KOKORO_DIR set), each caption stays up for its spoken length; without, for reading time.
+// Pause after each spoken line, in seconds (LINE_GAP to change it).
+const LINE_GAP = Number(process.env.LINE_GAP ?? 0.25);
 const spokenSeconds = {};
 const readSeconds = (line) => spokenSeconds[line] !== undefined
-  ? spokenSeconds[line] + 0.4
+  ? spokenSeconds[line] + LINE_GAP
   : Math.max(2.0, line.split(/\s+/).length * 0.34 + 0.55);
 const voiceCache = path.join(outDir, 'voice-cache');
 const withVoice = !!process.env.KOKORO_DIR;
@@ -263,7 +265,7 @@ async function record(name, scenes, lines = []) {
 // ---------------------------------------------------------------- the pitch (about two minutes)
 
 const pitch = [
-  async ({ deck, say, wait }) => { await deck('title-pitch'); await wait(1600); await say('pitch', 'p1-title'); },
+  async ({ deck, say, wait }) => { await deck('title-pitch'); await wait(1000); await say('pitch', 'p1-title'); },
   async ({ deck, say, wait }) => { await deck('problem'); await wait(600); await say('pitch', 'p2-problem'); await wait(400); },
   async ({ page, base, say, wait, point, scrollTo, gap }) => {
     await gap(async () => {
@@ -351,7 +353,7 @@ const pitch = [
     await wait(1200);
   },
   async (tools) => { await chipnetProof(tools, 'pitch', 'p7-chipnet'); },
-  async ({ deck, say, wait }) => { await deck('close'); await wait(800); await say('pitch', 'p8-close'); await wait(2500); },
+  async ({ deck, say, wait }) => { await deck('close'); await wait(800); await say('pitch', 'p8-close'); await wait(1500); },
 ];
 
 // The rescue on the real chipnet explorer, with the transaction list slide as a fallback.
