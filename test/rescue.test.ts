@@ -502,6 +502,17 @@ describe.each(MODES)('A rescue %s', (_label, mode) => {
       expectRejected(world, parts, /Input 2 must be this loan's sidecar/, PARYON_OTHER_LOAN);
     });
 
+    it('a copy of the loan key, held outside the vault, used in place of the vault key', () => {
+      // The loan key is a minting NFT, so copies can exist (minted before setup). A rescue must
+      // still use the vault's own key output, not a copy from somewhere else.
+      const world = createWorld({ mode });
+      const parts = world.rescue();
+      const copy = world.addUtxo(keeper.lockingBytecode, { vout: 0, satoshis: world.utxos.key.satoshis, token: world.utxos.key.token });
+      parts.inputs[4] = { utxo: copy, unlocker: keeper.signer.unlockP2PKH() };
+      // Paryon's manage function wants the key back where it came from, so it refuses first.
+      expectRejected(world, parts, /Key must come from this vault/, /at input 3 in contract manageLoan\.cash at line 118/);
+    });
+
     it('vault inputs placed anywhere but positions 4 and 5', () => {
       const world = createWorld({ mode });
       const parts = world.rescue();

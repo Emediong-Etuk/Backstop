@@ -1,21 +1,24 @@
 // Mutation test for Backstop.cash: switch off each `require`, one at a time, and check that some test fails.
 //
-//   node test/mutation.mjs            (from the repository root; takes about half an hour)
+//   node test/mutation.mjs                  (from the repository root; about 50 minutes)
+//   node test/mutation.mjs --only 54,66     re-check some lines and update their rows in docs/MUTATION.md
 //
 // For every require it replaces the condition with `true` (the check is gone, the contract still
-// compiles: CashScript needs every branch to end in a require), recompiles, and runs the behaviour tests,
-// stopping at the first failure: first the attack tests (fast, on the mock network), and only if
-// none fails, the rest, which run on the in-memory node. It records which test caught the deletion, or that none did, and
-// writes docs/MUTATION.md. The original contract is restored at the end, even on error.
+// compiles: CashScript needs every branch to end in a require), recompiles, and runs the behaviour
+// tests, stopping at the first failure: first the attack tests (fast, on the mock network), and
+// only if none fails, the rest, which run on the in-memory node. It records which test caught the
+// mutation, or that none did, and writes docs/MUTATION.md. The original contract is restored at the
+// end, even on error.
 // test/xo.test.ts is left out: it compares the XO template with the compiled bytecode, so it would
 // fail for every change and prove nothing about behaviour.
 import { execFileSync, spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 const root = resolve(import.meta.dirname, '..');
 const contract = join(root, 'contracts', 'Backstop.cash');
+const reportFile = join(root, 'docs', 'MUTATION.md');
 const original = readFileSync(contract, 'utf8');
 const lines = original.split('\n');
 const stages = [
@@ -23,6 +26,18 @@ const stages = [
   ['setup', 'node', 'story', 'keeper', 'demo', 'lookups', 'price', 'wizardconnect'],
 ].map((names) => names.map((name) => `${name}.test.ts`));
 const behaviourTests = stages.flat();
+const onlyArg = process.argv.indexOf('--only');
+const only = onlyArg > 0 ? new Set(process.argv[onlyArg + 1].split(',').map(Number)) : undefined;
+
+// Survivors that no test can catch, with the reason. Keyed by require message, so they follow the
+// line if the contract moves.
+const EXPLAINED = {
+  'Key and reserve must come from the same vault':
+    'Equivalent to the check at "Key must come from this vault". Both vault inputs run `rescue()`: this line, on the key input, '
+    + 'checks that the reserve has the key\'s script; that one, on the reserve input, checks that the key has the reserve\'s script. '
+    + 'It is the same equality seen from either input, so with this line off the other still refuses every transaction it would refuse. '
+    + 'The other line is caught (a copy of the loan key, held outside the vault, used in place of the vault key).',
+};
 
 const compile = () => spawnSync('node', [join(root, 'contracts', 'scripts', 'compile.mjs')], { encoding: 'utf8' });
 const functionAt = (index) => {
@@ -32,23 +47,46 @@ const functionAt = (index) => {
   }
   return '?';
 };
+const commitNow = () => execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
 
-const results = [];
+// With --only, start from the rows of the existing report and replace the lines being re-checked.
+const unescape = (s) => s.replace(/\\\|/g, '|');
+const previous = only && existsSync(reportFile)
+  ? readFileSync(reportFile, 'utf8').split('\n').filter((l) => /^\| \d+ \|/.test(l)).map((l) => {
+    const [line, fn, message, outcome, detail] = l.slice(2, -2).split(/ (?<!\\)\| /).map(unescape);
+    return { line: Number(line), fn, message, outcome, detail };
+  })
+  : [];
+const previousHeader = only && existsSync(reportFile) ? readFileSync(reportFile, 'utf8').match(/at commit `(\w+)`/)?.[1] : undefined;
+const results = [...previous];
+
 function writeReport(done) {
   const count = (o) => results.filter((r) => r.outcome === o).length;
   const escape = (s) => s.replace(/\|/g, '\\|');
   const date = new Date().toISOString().slice(0, 10);
-  const commit = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
-  const rows = results.map((r) => `| ${r.line} | ${r.fn} | ${escape(r.message)} | ${r.outcome} | ${escape(r.detail)} |`).join('\n');
-  writeFileSync(join(root, 'docs', 'MUTATION.md'), [
+  const sorted = [...results].sort((a, b) => a.line - b.line);
+  const rows = sorted.map((r) => `| ${r.line} | ${r.fn} | ${escape(r.message)} | ${r.outcome} | ${escape(r.detail)} |`).join('\n');
+  const survivors = sorted.filter((r) => r.outcome === 'survived');
+  const where = only && previousHeader
+    ? `at commit \`${previousHeader}\`; lines ${[...only].join(', ')} re-checked on ${date} at commit \`${commitNow()}\``
+    : `on ${date} at commit \`${commitNow()}\``;
+  writeFileSync(reportFile, [
     '# Mutation test: every `require` matters',
     '',
-    `Generated by \`node test/mutation.mjs\` on ${date} at commit \`${commit}\`${done ? '' : ` (in progress: ${results.length} so far)`}. Do not edit by hand.`,
+    `Generated by \`node test/mutation.mjs\` ${where}${done ? '' : ` (in progress: ${results.length} so far)`}. Do not edit by hand.`,
     '',
     'Each `require` in `contracts/Backstop.cash` was switched off, one at a time (its condition replaced by `true`); the contract',
     `was recompiled and the behaviour tests were run (${behaviourTests.join(', ')}). A mutation is **caught** when at least one test then fails.`,
     '',
     `**${count('caught')} of ${results.length} caught**${count('survived') ? `, **${count('survived')} survived**` : ''}${count('compiler') ? `, ${count('compiler')} rejected by the compiler` : ''}.`,
+    '',
+    ...(survivors.length ? [
+      '## Survivors',
+      '',
+      ...survivors.map((r) => `- **Line ${r.line}** ("${r.message}"): ${EXPLAINED[r.message] ?? 'no explanation recorded: this is a gap in the tests.'}`),
+      '',
+    ] : []),
+    '## Every require',
     '',
     '| Line | Function | require message | Result | First failing test |',
     '|---|---|---|---|---|',
@@ -59,7 +97,8 @@ function writeReport(done) {
 
 const scratch = mkdtempSync(join(tmpdir(), 'backstop-mutation-'));
 try {
-  const targets = lines.map((line, i) => ({ line, i })).filter(({ line }) => /^\s*require\(/.test(line));
+  const targets = lines.map((line, i) => ({ line, i }))
+    .filter(({ line, i }) => /^\s*require\(/.test(line) && (!only || only.has(i + 1)));
   for (const [n, { line, i }] of targets.entries()) {
     const message = line.match(/"([^"]+)"\);\s*$/)?.[1] ?? line.trim();
     const mutated = [...lines];
@@ -90,7 +129,9 @@ try {
       }
       result = failed ? { outcome: 'caught', detail: `${failed.file}: ${failed.name}` } : { outcome: 'survived', detail: 'no test failed' };
     }
-    results.push({ line: i + 1, fn: functionAt(i), message, ...result });
+    const row = { line: i + 1, fn: functionAt(i), message, ...result };
+    const at = results.findIndex((r) => r.line === row.line);
+    if (at >= 0) results[at] = row; else results.push(row);
     console.log(`${String(n + 1).padStart(2)}/${targets.length} line ${i + 1} ${result.outcome}: ${result.detail}`);
     writeReport(false);
   }
