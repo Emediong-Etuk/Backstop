@@ -88,15 +88,17 @@ The owner can always leave.
 
 ### On chipnet
 
-Fill this table from a real run with `npm run demo:links`, which prints it from chain data:
+One full run on chipnet, 12–13 November 2026. The borrower used Cashonize over WizardConnect for the setup and the withdraw; the rescue was sent by the keeper CLI, which holds no keys. The demo price was $30,000 so that the whole run fit in one faucet request (a $115 loan of 0.005 BCH at 130%). The table is printed from chain data by `npm run demo:links`:
 
 | Transaction | What it does | Explorer |
 |---|---|---|
-| Demo deployment | *(run `npm run demo:links`)* | |
-| Setup | | |
-| Price update | | |
-| Rescue | | |
-| Withdraw | | |
+| Demo deployment | Paryon's price contract, manage function, demo loan and loan key | [b6bdb31f8622…](https://chipnet.imaginary.cash/tx/b6bdb31f8622c03ad0eb3ac1ae686f66afce6586e5a5f1e74d082d2224d8e67f) |
+| Setup | Loan key and a 0.003 BCH reserve into the vault (one Cashonize signature) | [ff1affd37f70…](https://chipnet.imaginary.cash/tx/ff1affd37f70464bf994d4129b510fd9427cbe290fc349775855828611b0cca7) |
+| Price update | DEMO oracle price $30,000 → $26,500 into Paryon's price contract; the loan falls to 115% | [cb31f9f0a064…](https://chipnet.imaginary.cash/tx/cb31f9f0a064dbc4a92712925af7d6b9e42f84424e3e0c35280f5129a3f310e7) |
+| Rescue | 0.0015 BCH from the reserve into the loan, back to 149.8%; 2,629 sats fee, no signatures | [24aa5b20a23b…](https://chipnet.imaginary.cash/tx/24aa5b20a23bcf3910cc72b004307127ee18460c1e5f1f8eb9f7a67a2dc0d399) |
+| Withdraw | Loan key and the rest of the reserve back to the borrower (`ownerWithdraw`, one Cashonize signature) | [962af902b19a…](https://chipnet.imaginary.cash/tx/962af902b19aa1df7b86db3eb4f7b15fc612f51dec2ef8829ff6ba34cdb78aab) |
+
+The rescue waited one block after the setup: the keeper reported "reserve is in its cooldown (0/1 blocks)" until the reserve was confirmed, then sent the rescue on its next check.
 
 ## Every guarantee is a `require`
 

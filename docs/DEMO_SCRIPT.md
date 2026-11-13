@@ -40,6 +40,18 @@ Three windows on screen: the **web app** (left), the **keeper** terminal (top ri
    npm run demo:crash -- --price 300
    ```
 
+**If you deployed the small version** (`--price 3000 --collateral 0.05`, or `--price 30000 --collateral 0.005`, as on the chipnet run), the story and the ratios are the same; only the BCH amounts and the prices change. Say once on camera that the demo price is high so the demo fits in faucet coins.
+
+| In the script | $300 version | $30,000 version |
+|---|---|---|
+| Collateral | 0.5 BCH | 0.005 BCH |
+| Reserve | 0.5 BCH | 0.003 BCH |
+| Rescue below | $287.50 | $28,750 |
+| Liquidated below | $253 | $25,300 |
+| Crash command | `--price 265` | `--price 26500` |
+| One rescue adds up to | 0.25 BCH | 0.0015 BCH |
+| Back to | 150% | 149.8% |
+
 **Cooldown:** a vault can only be rescued once its reserve is one block old (about 10 minutes, with the 10-minute setting). So record the setup, pause the recording until the next block, then record the crash. Say it on camera; it is one of the protections.
 
 ## The script

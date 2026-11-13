@@ -84,9 +84,8 @@ Residual risks:
 - **No public Paryon chipnet deployment exists.** The demo deploys Paryon's **unmodified** Loan, LoanSidecar, manage and PriceContractGuarded bytecode under our own token categories (`oracle-demo/src/deploy.ts`). Demo loans are created directly at genesis, not through Paryon's `borrow`. Borrowing, the stability pool and liquidation are not deployed.
 - **The price on chipnet comes from a DEMO oracle key** that we control, so the price can fall on camera. The messages use the real General Protocols format and go through Paryon's real price contract and `checkDataSig`. On mainnet the price contract uses General Protocols' key `02d09db08af1ff4e8453919cc866a4be427d7bfe18f2c05e5444c196fcf6fd2818`. The web app labels the demo price feed.
 - **Keeper discovery reads setup transaction IDs from `keeper/vaults.json`**, not a ChainGraph query. I could not confirm a chipnet ChainGraph instance. Each vault's rules still come from its on-chain setup OP_RETURN.
-- **Not yet run on chipnet itself.** The development sandbox could not reach chipnet. Everything was exercised on the mock network and on mem-cash, including the full demo sequence (`test/demo.test.ts`) and the web app in a browser (`npm run web:e2e`).
-- **WalletConnect signing with Cashonize is untested.** Setup and withdraw both ask the wallet to sign only its own coins: withdraw uses `ownerWithdraw`, so no placeholder signatures are involved.
-- **WizardConnect is tested against the WizardConnect libraries, not a real wallet app.** `test/wizardconnect.test.ts` pairs the web app's code with `@wizardconnect/wallet`'s real connection manager over a local Nostr relay and runs setup, rescue and withdraw. The test wallet signs the way the protocol requires, but no shipping WizardConnect wallet has been tried yet.
+- **Run once on chipnet, at a small scale.** Deploy, setup, price crash, rescue and withdraw all ran on chipnet on 12–13 November 2026; the transactions are linked in [ARCHITECTURE.md](docs/ARCHITECTURE.md#on-chipnet). To fit one faucet request, that run used a $30,000 demo price and a 0.005 BCH loan; the contract and the ratios are the same at any size. Everything is also exercised on the mock network and on mem-cash (`test/demo.test.ts`) and in a browser (`npm run web:e2e`).
+- **WizardConnect works with Cashonize; WalletConnect is untested.** The chipnet run's setup and withdraw were signed in Cashonize over WizardConnect. `test/wizardconnect.test.ts` also pairs the web app with `@wizardconnect/wallet`'s real connection manager over a local Nostr relay. The WalletConnect path has not been tried with a wallet; it asks the wallet to sign only its own coins, the same as WizardConnect.
 - **The XO template is checked offline only.** XO's own parser and compiler show it produces Backstop's and Paryon's exact bytecode (`test/xo.test.ts`), but it has not been run in the XO engine or debug tool; see [`xo/README.md`](xo/README.md).
 - **One loan per vault.** Topping up the reserve means withdrawing and setting up again.
 
@@ -100,7 +99,7 @@ These steps need a normal internet connection (Electrum over WebSocket). The rec
 npm run demo:servers
 ```
 
-Then put a server that is on the newest block in `.env` as `CHIPNET_ELECTRUM_SERVER`. The demo scripts, the keeper and the web app all use it. Fund your addresses from a faucet whose node is on the same chain. On 12 November 2026 the `chipnet.bch.ninja` server and faucet were stuck at block 331,985 while chipnet was past 332,075.
+Then put a server that is on the newest block in `.env` as `CHIPNET_ELECTRUM_SERVER`. The demo scripts, the keeper and the web app all use it. Fund your addresses from a faucet whose node is on the same chain. On 12 November 2026 the `chipnet.bch.ninja` server and faucet were on their own branch, at block 331,985 while chipnet was past 332,075: what was sent through them never reached chipnet.
 
 1. Create demo keys in `.env`, which git ignores:
 
