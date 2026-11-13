@@ -1,0 +1,251 @@
+1
+00:00:01,810 --> 00:00:04,585
+This is the technical walkthrough of Backstop:
+
+2
+00:00:04,585 --> 00:00:09,318
+a CashScript vault that pre-funds a rescue for a ParyonUSD loan.
+
+3
+00:00:10,522 --> 00:00:12,186
+There are four pieces.
+
+4
+00:00:12,186 --> 00:00:13,850
+The borrower's wallet.
+
+5
+00:00:13,850 --> 00:00:17,302
+The vault, which is two outputs at one contract address:
+
+6
+00:00:17,302 --> 00:00:23,485
+a key output holding Paryon's minting loan key, and a reserve output holding plain BCH.
+
+7
+00:00:23,485 --> 00:00:27,941
+They are separate because Paryon's manage function requires the loan key
+
+8
+00:00:27,941 --> 00:00:31,180
+to come back with exactly the value it went in with.
+
+9
+00:00:31,180 --> 00:00:34,590
+Then Paryon's own contracts: the price contract,
+
+10
+00:00:34,590 --> 00:00:36,424
+the loan with its sidecar,
+
+11
+00:00:36,424 --> 00:00:38,171
+and the manage function.
+
+12
+00:00:38,171 --> 00:00:42,249
+And the keeper: a stateless process with no keys and no funds.
+
+13
+00:00:44,054 --> 00:00:46,353
+Setup is one wallet signature.
+
+14
+00:00:46,353 --> 00:00:49,424
+The loan key and the reserve move into the vault,
+
+15
+00:00:49,424 --> 00:00:52,428
+and an OP_RETURN records every vault parameter.
+
+16
+00:00:52,428 --> 00:00:57,031
+So anyone can rebuild the vault's address and rules from chain data alone.
+
+17
+00:00:57,031 --> 00:01:00,036
+The keeper and the web app need no database.
+
+18
+00:01:01,841 --> 00:01:07,422
+The rescue is Paryon's own add-collateral transaction, manage with no repayment,
+
+19
+00:01:07,422 --> 00:01:09,916
+with the vault at inputs 4 and 5.
+
+20
+00:01:09,916 --> 00:01:15,607
+Paryon fixes inputs and outputs 0 to 4 and leaves index 5 onward free,
+
+21
+00:01:15,607 --> 00:01:19,274
+which is where the reserve and an optional keeper reward go.
+
+22
+00:01:19,274 --> 00:01:20,764
+Nobody signs.
+
+23
+00:01:20,764 --> 00:01:24,503
+The price comes from Paryon's price contract at input 0,
+
+24
+00:01:24,503 --> 00:01:31,435
+which only accepts oracle-signed messages, verified with checkDataSig, with an increasing sequence number,
+
+25
+00:01:31,435 --> 00:01:34,120
+so an old low price cannot be replayed.
+
+26
+00:01:35,656 --> 00:01:39,305
+Every guarantee is a require in Backstop.cash.
+
+27
+00:01:39,305 --> 00:01:42,580
+The rescue path checks the exact transaction shape;
+
+28
+00:01:42,580 --> 00:01:45,307
+that the vault sits at positions 4 and 5;
+
+29
+00:01:45,307 --> 00:01:47,532
+a relative timelock cooldown;
+
+30
+00:01:47,532 --> 00:01:49,558
+the genuine price contract;
+
+31
+00:01:49,558 --> 00:01:55,233
+that the loan belongs to this key, and its debt, state and interest manager are unchanged;
+
+32
+00:01:55,234 --> 00:01:57,716
+that the manage function is Paryon's;
+
+33
+00:01:57,716 --> 00:02:00,794
+that the top-up is positive and within the limit;
+
+34
+00:02:00,794 --> 00:02:04,125
+that the key comes straight back with its minting capability;
+
+35
+00:02:04,125 --> 00:02:08,351
+that the reserve returns, minus at most the top-up and a capped fee;
+
+36
+00:02:08,351 --> 00:02:14,680
+and the ratio rules: below the trigger, never above the target, and no draining through tiny rescues.
+
+37
+00:02:14,680 --> 00:02:18,515
+The ratio maths is cross-multiplied, with no division.
+
+38
+00:02:20,062 --> 00:02:23,173
+There are two ways out, both only for the borrower.
+
+39
+00:02:23,173 --> 00:02:26,013
+ownerSpend checks the owner's key and signature.
+
+40
+00:02:26,013 --> 00:02:31,090
+ownerWithdraw exists because WizardConnect wallets sign only their own coins:
+
+41
+00:02:31,090 --> 00:02:35,163
+the owner spends one of their own coins in the same transaction,
+
+42
+00:02:35,163 --> 00:02:38,214
+the contract checks it sits at the owner's address,
+
+43
+00:02:38,214 --> 00:02:40,295
+every output pays the owner,
+
+44
+00:02:40,295 --> 00:02:41,875
+and the fee is capped.
+
+45
+00:02:43,092 --> 00:02:48,592
+Each rescue attack is tested twice: against Paryon's real compiled contracts,
+
+46
+00:02:48,592 --> 00:02:52,129
+and with Paryon's checks replaced by permissive stand-ins,
+
+47
+00:02:52,129 --> 00:02:54,900
+where it must fail on Backstop's own require,
+
+48
+00:02:54,900 --> 00:02:56,732
+matched by its message.
+
+49
+00:02:56,732 --> 00:03:00,610
+So no guarantee depends on Paryon catching the same mistake.
+
+50
+00:03:00,610 --> 00:03:05,962
+The suite runs 164 tests, including the full demo on an in-memory
+
+51
+00:03:05,962 --> 00:03:12,125
+node that enforces relative timelocks, standardness and fees the way BCHN does.
+
+52
+00:03:12,125 --> 00:03:16,793
+And a mutation test switches off each of the fifty-five requires in turn:
+
+53
+00:03:16,793 --> 00:03:21,845
+fifty-four are caught by a named test, and the last one duplicates another check.
+
+54
+00:03:24,253 --> 00:03:31,204
+And it ran on chipnet, with Paryon's unmodified loan, sidecar, manage and price contract bytecode.
+
+55
+00:03:31,204 --> 00:03:33,723
+Here is the setup, the price update,
+
+56
+00:03:33,878 --> 00:03:36,802
+the rescue sent by the keeper, and the withdraw.
+
+57
+00:03:36,802 --> 00:03:41,389
+The setup and the withdraw were signed in Cashonize over WizardConnect.
+
+58
+00:03:43,250 --> 00:03:44,973
+The known limitations.
+
+59
+00:03:44,973 --> 00:03:50,794
+On chipnet the price comes from a demo oracle key; mainnet would use General Protocols.
+
+60
+00:03:50,794 --> 00:03:54,886
+A stale price means no rescue, but also no liquidation.
+
+61
+00:03:54,886 --> 00:04:00,238
+A crash faster than any keeper, or within the cooldown, can still be liquidated first.
+
+62
+00:04:00,238 --> 00:04:03,776
+Redemptions are out of scope, and there is one loan per vault.
+
+63
+00:04:03,776 --> 00:04:08,935
+Backstop reduces liquidation risk without asking the borrower to trust anyone.

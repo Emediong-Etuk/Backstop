@@ -11,3 +11,6 @@ web/.next/
 web/out/
 web/next-env.d.ts
 web/public/deployment.json
+web/AGENTS.md
+*.tsbuildinfo
+docs/video/out/

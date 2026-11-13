@@ -1,16 +1,63 @@
 # Backstop
 
-**A pre-funded rescue for ParyonUSD loans on Bitcoin Cash.** BCH BLAZE 2026 entry.
+[![CI](https://github.com/Emediong-Etuk/Backstop/actions/workflows/ci.yml/badge.svg)](https://github.com/Emediong-Etuk/Backstop/actions/workflows/ci.yml)
 
-A ParyonUSD borrower locks BCH and borrows PUSD. If the loan falls below 110% collateral it is liquidated, and the borrower loses all of that BCH. Today the only defence is to watch the price and add collateral by hand.
+**A pre-funded rescue for ParyonUSD loans on Bitcoin Cash.** The borrower puts their loan key and a BCH reserve into a vault, once. When the loan nears liquidation, **anyone** can send a rescue that moves part of the reserve into the borrower's own loan, with no signature from the borrower. One rule is enforced by the covenant itself: **the reserve can only ever go into this borrower's own loan, within the limits they set.** It has run end to end on chipnet.
 
-With Backstop, the borrower moves their loan key and a BCH reserve into a vault, once. If BCH falls far enough that the loan nears liquidation, **anyone** can broadcast a rescue that moves part of the reserve into the borrower's own loan.
+**[Try it live](https://emediong-etuk.github.io/Backstop/?preview)** (no wallet needed) · **[Pitch video, 2 min](docs/video/media/backstop-pitch.mp4)** · **[Technical walkthrough, 4 min](docs/video/media/backstop-technical-walkthrough.mp4)** · BCH BLAZE 2026
 
-- **Safety enforced on-chain.** Every guarantee is a `require` in `contracts/Backstop.cash`. A malicious keeper building the transaction by hand can only perform the rescue correctly.
-- **BCH-native.** The pieces are a CashScript covenant, CashTokens (Paryon's minting loan-key NFT), transaction introspection, and oracle prices verified in script with `checkDataSig` (in Paryon's price contract, which the rescue reads). There is no backend, database or custodial server.
-- **No friction.** One signature to set up, none during a rescue, one to withdraw. No account. The rescue's fee comes from the reserve, within a cap the borrower sets.
+![A rescue has just landed: the loan is back near 150%](docs/images/rescued.png)
 
-Docs: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (technical walkthrough, guarantee → `require` → test), [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) (the two-minute pitch), [`docs/PHASE0.md`](docs/PHASE0.md) (research on Paryon, the oracle and XO).
+## Judges, start here
+
+No wallet, keys or funds needed for steps 1–4.
+
+1. **Do:** open the [live preview](https://emediong-etuk.github.io/Backstop/?preview). **See:** a demo ParyonUSD loan at 130% (0.5 BCH for $115 at $300/BCH, liquidated below $253) and a test wallet, on a test chain inside the page.
+2. **Do:** click **Protect my loan**. **See:** the loan key and a reserve move into the vault, with one signature (signed by the test wallet).
+3. **Do:** under **Try to break it**, click **Copy the loan key**. **See:** *Refused*, `Backstop.cash` line 149, and the node rejecting the transaction. Paryon's own contracts would accept this attack; Backstop alone stops it. Try the other two attacks too.
+4. **Do:** click **Price to $265**, then **Run a keeper**. **See:** the loan falls to 115%, a keeper with no keys rescues it, and it is back near 150%, with *Rescued* in the history.
+5. **Do:** open the [rescue on chipnet](https://chipnet.imaginary.cash/tx/24aa5b20a23bcf3910cc72b004307127ee18460c1e5f1f8eb9f7a67a2dc0d399). **See:** the same transaction on the real chain: six inputs (Paryon's four contracts and the two vault outputs), confirmed, nothing signed by the borrower.
+6. **Do:** `npm install && npm test`. **See:** 164 tests pass, every rescue attack run twice: against Paryon's real contracts, and with Paryon's checks removed, failing on Backstop's own `require`.
+7. **Do:** read [`docs/MUTATION.md`](docs/MUTATION.md). **See:** each of the contract's 55 `require`s switched off in turn: 54 caught by a named test, and the one that cannot be (it duplicates another check from the other vault input) explained.
+
+## The problem, in numbers
+
+A borrower locks 0.5 BCH and borrows $115 of ParyonUSD at $300 per BCH: 130% collateral. Below 110%, at $253 per BCH, the loan is liquidated and **all 0.5 BCH is gone**. A 16% drop overnight is enough. Today the only defence is to be awake, watching, with spare BCH ready to add by hand.
+
+With Backstop and a 0.3 BCH reserve, a rescue starts below $287.50 (125%), lifts the loan back to 150%, and the loan can absorb a fall to about $158 instead of $253. Nobody has to be awake.
+
+## Proof: the run on chipnet
+
+Paryon's unmodified contracts, one demo loan, a setup and withdraw signed in Cashonize over WizardConnect, and a rescue sent by the keeper CLI. 12–13 November 2026, all confirmed. To fit one faucet request, this run used a $30,000 demo price and a 0.005 BCH loan; the ratios are the same as above.
+
+| Transaction | What happened | Block | Explorer |
+|---|---|---|---|
+| Demo deployment | Paryon's price contract, manage function, demo loan and loan key | 332,084 | [b6bdb31f…](https://chipnet.imaginary.cash/tx/b6bdb31f8622c03ad0eb3ac1ae686f66afce6586e5a5f1e74d082d2224d8e67f) |
+| Setup | Loan key and a 0.003 BCH reserve into the vault, one signature | 332,087 | [ff1affd3…](https://chipnet.imaginary.cash/tx/ff1affd37f70464bf994d4129b510fd9427cbe290fc349775855828611b0cca7) |
+| Price update | Demo oracle: $30,000 → $26,500, the loan falls to 115% | 332,087 | [cb31f9f0…](https://chipnet.imaginary.cash/tx/cb31f9f0a064dbc4a92712925af7d6b9e42f84424e3e0c35280f5129a3f310e7) |
+| **Rescue** | 0.0015 BCH from the reserve into the loan, back to 149.8%, no signatures | 332,088 | [24aa5b20…](https://chipnet.imaginary.cash/tx/24aa5b20a23bcf3910cc72b004307127ee18460c1e5f1f8eb9f7a67a2dc0d399) |
+| Withdraw | Loan key and the rest of the reserve back to the borrower, one signature | 332,088 | [962af902…](https://chipnet.imaginary.cash/tx/962af902b19aa1df7b86db3eb4f7b15fc612f51dec2ef8829ff6ba34cdb78aab) |
+
+Each link opens the transaction on the chipnet explorer. The deployment is in [`deployments/chipnet.json`](deployments/chipnet.json); with the setup ID above in `keeper/vaults.json`, `npm run demo:links` rebuilds this table from the chain.
+
+## What makes it safe, and Bitcoin Cash native
+
+- **Safety enforced on chain.** Every guarantee is a `require` in [`contracts/Backstop.cash`](contracts/Backstop.cash); [ARCHITECTURE.md](docs/ARCHITECTURE.md#every-guarantee-is-a-require) maps each one to its line and its test. A malicious keeper building the transaction by hand can only perform the rescue as the borrower set it up.
+- **No friction.** One signature to set up, none during a rescue, one to withdraw. No account, server or database. The rescue's fee comes from the reserve, within a cap the borrower sets.
+
+| Bitcoin Cash feature | What it does here | Where |
+|---|---|---|
+| CashScript covenant (P2SH32) | The vault: `rescue()` for anyone, `ownerSpend` / `ownerWithdraw` for the borrower | [`contracts/Backstop.cash`](contracts/Backstop.cash), [`contracts/src/vault.ts`](contracts/src/vault.ts) |
+| Transaction introspection | Pins the exact rescue: 6 inputs, ≤7 outputs, each one's script, token and value | `Backstop.cash:58-150` |
+| CashTokens | Identifies the loan key (a minting NFT) and Paryon's contracts; reads the loan's debt and the price from NFT commitments; forbids minting a copy of the key | `Backstop.cash:68, 79-99, 149` |
+| `checkDataSig` oracle prices | The rescue reads Paryon's price contract, which accepts only oracle-signed, newer prices: no fake or replayed price | Paryon's `PriceContract`; [`test/price.test.ts`](test/price.test.ts) |
+| BIP68 relative timelock (`this.age`) | A cooldown between rescues, enforced by every node | `Backstop.cash:75`; [`test/node.test.ts`](test/node.test.ts) |
+| Large script integers (2025 upgrade) | Ratio checks cross-multiplied, no division | `Backstop.cash:153-165` |
+| `OP_RETURN` | The setup publishes every vault rule, so anyone can rebuild the vault from the chain | [`contracts/src/vault.ts`](contracts/src/vault.ts) |
+| WizardConnect / WalletConnect | Wallet signing from a static site, no backend | [`web/lib/wizardconnect.ts`](web/lib/wizardconnect.ts), [`web/lib/walletconnect.ts`](web/lib/walletconnect.ts) |
+| XO template | The vault's three actions for the XO debug tool | [`xo/`](xo/README.md) |
+
+Docs: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (technical walkthrough, guarantee → `require` → test), [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) (the pitch), [`docs/MUTATION.md`](docs/MUTATION.md) (each `require` switched off, and the test that catches it), [`docs/PHASE0.md`](docs/PHASE0.md) (research on Paryon, the oracle and XO).
 
 ## Quick start from a clean clone
 
@@ -24,18 +71,22 @@ npm install
 npm test
 ```
 
-`npm test` compiles the covenant and runs 95 tests. They use **Paryon's real compiled contracts** (`@paryonusd/contracts@1.1.0`), on two networks:
+`npm test` compiles the covenant and runs 164 tests. They use **Paryon's real compiled contracts** (`@paryonusd/contracts@1.1.0`), on two networks:
 
 - CashScript's mock network;
 - `@paryonusd/mem-cash`, an in-memory node that checks relative timelocks, standardness and fees the way BCHN does.
 
-Try the app without a wallet or network:
+Run the app locally without a wallet or network:
 
 ```bash
 npm run web:dev
 ```
 
-Then open http://localhost:3000/?preview. This **local preview** runs a throwaway test chain inside the page, with a demo loan, a test wallet and buttons that play the price feed, the miners and a keeper. The same flow runs headless on desktop and phone sizes with `npm run web:e2e`; that needs Playwright with Chromium.
+Then open http://localhost:3000/?preview: the same local preview as the live link. The whole flow, including the attacks, runs headless on desktop and phone sizes with `npm run web:e2e` (needs Playwright with Chromium); CI runs it on every push.
+
+| Setting up: the reserve and what it buys | An attack, refused |
+|---|---|
+| ![Setup: the reserve slider and the price scale](docs/images/setup.png) | ![Copy the loan key: refused at Backstop.cash line 149](docs/images/attack-refused.png) |
 
 ## How it works
 
@@ -79,20 +130,33 @@ Residual risks:
 - **A crash faster than any keeper, or within the cooldown.** The stability pool can still liquidate first.
 - **Redemptions**, which are out of scope.
 
-## What is mocked, demo-only or unfinished
+## What is real and what is simulated
 
-- **No public Paryon chipnet deployment exists.** The demo deploys Paryon's **unmodified** Loan, LoanSidecar, manage and PriceContractGuarded bytecode under our own token categories (`oracle-demo/src/deploy.ts`). Demo loans are created directly at genesis, not through Paryon's `borrow`. Borrowing, the stability pool and liquidation are not deployed.
-- **The price on chipnet comes from a DEMO oracle key** that we control, so the price can fall on camera. The messages use the real General Protocols format and go through Paryon's real price contract and `checkDataSig`. On mainnet the price contract uses General Protocols' key `02d09db08af1ff4e8453919cc866a4be427d7bfe18f2c05e5444c196fcf6fd2818`. The web app labels the demo price feed.
-- **Keeper discovery reads setup transaction IDs from `keeper/vaults.json`**, not a ChainGraph query. I could not confirm a chipnet ChainGraph instance. Each vault's rules still come from its on-chain setup OP_RETURN.
-- **Not yet run on chipnet itself.** The development sandbox could not reach chipnet. Everything was exercised on the mock network and on mem-cash, including the full demo sequence (`test/demo.test.ts`) and the web app in a browser (`npm run web:e2e`).
-- **WalletConnect signing with Cashonize is untested.** Setup and withdraw both ask the wallet to sign only its own coins: withdraw uses `ownerWithdraw`, so no placeholder signatures are involved.
-- **WizardConnect is tested against the WizardConnect libraries, not a real wallet app.** `test/wizardconnect.test.ts` pairs the web app's code with `@wizardconnect/wallet`'s real connection manager over a local Nostr relay and runs setup, rescue and withdraw. The test wallet signs the way the protocol requires, but no shipping WizardConnect wallet has been tried yet.
-- **The XO template is checked offline only.** XO's own parser and compiler show it produces Backstop's and Paryon's exact bytecode (`test/xo.test.ts`), but it has not been run in the XO engine or debug tool; see [`xo/README.md`](xo/README.md).
-- **One loan per vault.** Topping up the reserve means withdrawing and setting up again.
+| Piece | Real | Simulated or demo-only |
+|---|---|---|
+| Backstop covenant | The same compiled contract in the tests, the preview and on chipnet | — |
+| Paryon contracts | Paryon's **unmodified** Loan, LoanSidecar, manage and PriceContractGuarded bytecode (`@paryonusd/contracts@1.1.0`) | There is no public Paryon chipnet deployment, so we deployed that bytecode under our own token categories (`oracle-demo/src/deploy.ts`). Demo loans are created at genesis, not through `borrow`. Borrowing, the stability pool and liquidation are not deployed. |
+| Price feed | Real General Protocols message format, verified by Paryon's price contract with `checkDataSig` | On chipnet the oracle key is a **demo key we control**, so the price can fall on camera. Mainnet would use General Protocols' key `02d09db08af1ff4e8453919cc866a4be427d7bfe18f2c05e5444c196fcf6fd2818`. The app labels the demo price feed. |
+| Chain | The chipnet run above: five confirmed transactions | The **live preview** runs a test chain inside the page (`@paryonusd/mem-cash`) with a test wallet; it is labelled on screen. |
+| Amounts | The preview uses 0.5 BCH at $300 | The chipnet run used a $30,000 demo price and a 0.005 BCH loan, to fit one faucet request. |
+| Wallets | Cashonize over WizardConnect signed the chipnet setup and withdraw | WalletConnect has not been tried with a wallet. `test/wizardconnect.test.ts` pairs the app with `@wizardconnect/wallet`'s connection manager over a local relay. |
+| Keeper | The real CLI sent the chipnet rescue, holding no keys | It finds vaults from setup transaction IDs in `keeper/vaults.json`, not an indexer: I could not confirm a chipnet ChainGraph instance. Each vault's rules still come from its on-chain setup `OP_RETURN`. |
+| XO template | XO's own parser and compiler produce Backstop's and Paryon's exact bytecode (`test/xo.test.ts`) | Not run in the XO engine or debug tool; see [`xo/README.md`](xo/README.md). |
+| Videos | Recorded from the real app and the real chipnet explorer | The app scenes use the live preview; the narration is a synthesized voice (Kokoro). |
+
+Also: **one loan per vault.** Topping up the reserve means withdrawing and setting up again.
 
 ## Run the demo on chipnet
 
 These steps need a normal internet connection (Electrum over WebSocket). The recording sequence is in [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md).
+
+**Check the chipnet servers first.** A server whose node has fallen off the network keeps answering, but no new block arrives there and nothing sent through it confirms. Compare the servers:
+
+```bash
+npm run demo:servers
+```
+
+Then put a server that is on the newest block in `.env` as `CHIPNET_ELECTRUM_SERVER`. The demo scripts, the keeper and the web app all use it. Fund your addresses from a faucet whose node is on the same chain. On 12 November 2026 the `chipnet.bch.ninja` server and faucet were on their own branch, at block 331,985 while chipnet was past 332,075: what was sent through them never reached chipnet.
 
 1. Create demo keys in `.env`, which git ignores:
 
@@ -100,13 +164,31 @@ These steps need a normal internet connection (Electrum over WebSocket). The rec
    npm run demo:keys -- --write
    ```
 
-2. Fund the printed addresses from https://chipnet.bch.ninja/: about 1.2 tBCH for the funder and 0.6 tBCH for the borrower.
+2. Fund the printed addresses from a chipnet faucet whose node is on the newest block: about 1.2 tBCH for the funder and 0.6 tBCH for the borrower (or about a tenth of that with the smaller demo below).
 
 3. Deploy Paryon's add-collateral contracts with two demo loans (0.5 BCH collateral, $115 debt, at $300/BCH, so 130%). Add `--borrower-address <bchtest:z…>` to send the loan keys to a Cashonize wallet.
 
    ```bash
    npm run demo:deploy
    ```
+
+   **Short of test BCH?** Paryon's minimum debt is in dollars ($100), so a higher demo price shrinks every BCH amount and keeps the same ratios. This needs about 0.07 tBCH for the funder and 0.06 for the borrower (`test/demo.test.ts` runs it):
+
+   ```bash
+   npm run demo:deploy -- --price 3000 --loans 1 --collateral 0.05
+   ```
+
+   Then use a 0.05 BCH reserve, and crash to `--price 2650` instead of 265.
+
+   With only one faucet request (1,000,000 sats) per address, go one step further: `--price 30000 --collateral 0.005`, a 0.005 BCH reserve, and crash to `--price 26500`.
+
+   If only the funder got coins, it can pay the borrower's wallet from what the deploy leaves (`test/demo.test.ts` runs this with a single 1,000,000-sat faucet request):
+
+   ```bash
+   npm run demo:fund -- --to <wallet address> --amount 0.004
+   ```
+
+   Then use a 0.003 BCH reserve.
 
 4. Either set up through the web app (`npm run web:dev`, with `NEXT_PUBLIC_WC_PROJECT_ID` in `.env`), or with the scripted borrower:
 
@@ -154,7 +236,7 @@ npm run keeper -- --dry-run
 npm run keeper -- --watch
 ```
 
-The keeper is stateless. It needs no private key and no funds. `--dry-run` prints the rescue it would send (inputs, outputs, ratio before and after, raw hex) and broadcasts nothing. It checks each transaction locally before broadcasting and waits out each vault's cooldown. Options: `--fee-rate`, `--reward-sats`, `--server`, `--deployment`, `--vaults`. Set `KEEPER_REWARD_ADDRESS` in `.env` to collect rewards.
+The keeper is stateless. It needs no private key and no funds. `--dry-run` prints the rescue it would send (inputs, outputs, ratio before and after, raw hex) and broadcasts nothing. It checks each transaction locally before broadcasting and waits out each vault's cooldown. Options: `--fee-rate`, `--reward-sats`, `--server` (default: `CHIPNET_ELECTRUM_SERVER` from `.env`, else `chipnet.imaginary.cash`), `--deployment`, `--vaults`. Set `KEEPER_REWARD_ADDRESS` in `.env` to collect rewards.
 
 ## Web app
 
@@ -163,6 +245,7 @@ A static Next.js site (`web/`), with three screens. With WizardConnect, the app 
 - **Connect:** WizardConnect (HD wallets, no setup needed) or WalletConnect (chain `bch:bchtest`, for wallets such as Cashonize).
 - **Set up:** finds the loan whose key is in the wallet, shows its health and liquidation price, and explains what a rescue will do. One signature.
 - **Status:** reserve, rescue and liquidation prices, rescue history from the chain, and *Withdraw everything*.
+- **Local preview only:** controls for the price feed, the miners and a keeper, and **Try to break it**: three attacks a malicious keeper could try (steal the reserve, overcharge the fee, copy the loan key). Each is a real rescue transaction with one change; the app shows the `require` that refuses it and the node's rejection (`contracts/src/attacks.ts`, `test/attacks.test.ts`).
 
 To build the site:
 
@@ -170,7 +253,7 @@ To build the site:
 npm run web:build
 ```
 
-This writes `web/out/`, which you can host anywhere. It reads `deployment.json` next to `index.html` at runtime. Configuration is in `.env` (see `.env.example`): `NEXT_PUBLIC_WC_PROJECT_ID` (free from https://dashboard.reown.com) and optionally `NEXT_PUBLIC_ELECTRUM_SERVER`.
+This writes `web/out/`, which you can host anywhere; `.github/workflows/pages.yml` publishes it to GitHub Pages on every push to `main`. It reads `deployment.json` next to `index.html` at runtime. Configuration is in `.env` (see `.env.example`): `NEXT_PUBLIC_WC_PROJECT_ID` (free from https://dashboard.reown.com) and optionally `CHIPNET_ELECTRUM_SERVER`.
 
 ## XO template
 
@@ -192,3 +275,13 @@ docs/         research, architecture, demo script; docs/phase0/probe is the comp
 No private keys are committed. Keys live in `.env`; see `.env.example`.
 
 WizardConnect support uses `@wizardconnect/core` and `@wizardconnect/dapp` (LGPL-3.0) as unmodified npm dependencies.
+
+## Prior work and AI assistance
+
+- **When it was built.** Development started on 10 November 2026, before BCH BLAZE's hacking period (14–22 November). Every commit is dated in the git history.
+- **AI assistance.** The code, tests and documentation were written with Claude Code (Anthropic), working from the author's specification and direction; commits carry a `Co-Authored-By` trailer. The author ran the chipnet demo with their own wallet.
+- **Third-party code, used unmodified as npm dependencies:** Paryon's contracts and `mem-cash` (`@paryonusd/*`), CashScript, libauth, General Protocols' price-oracle library, `@wizardconnect/core` and `@wizardconnect/dapp` (LGPL-3.0), WalletConnect, Next.js. The video narration uses Kokoro (Apache-2.0).
+
+## License
+
+MIT, see [`LICENSE`](LICENSE).

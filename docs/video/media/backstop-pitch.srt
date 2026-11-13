@@ -1,0 +1,127 @@
+1
+00:00:01,316 --> 00:00:03,446
+Meet a ParyonUSD borrower.
+
+2
+00:00:03,446 --> 00:00:06,664
+She locked BCH and borrowed dollars against it.
+
+3
+00:00:07,268 --> 00:00:11,958
+If her loan drops below 110% collateral, it is liquidated,
+
+4
+00:00:11,958 --> 00:00:14,364
+and she loses all of that BCH.
+
+5
+00:00:14,364 --> 00:00:16,259
+Prices crash at 3am.
+
+6
+00:00:16,259 --> 00:00:18,730
+Today her only defence is to be awake,
+
+7
+00:00:18,730 --> 00:00:21,352
+with spare BCH ready to add by hand.
+
+8
+00:00:21,906 --> 00:00:23,844
+Backstop is a safety net.
+
+9
+00:00:23,844 --> 00:00:26,442
+She sets aside a BCH reserve, once.
+
+10
+00:00:26,442 --> 00:00:31,537
+If her loan nears liquidation, anyone can move part of that reserve into her loan.
+
+11
+00:00:31,537 --> 00:00:35,587
+She signs nothing, and the contract makes sure that is all they can do.
+
+12
+00:00:38,980 --> 00:00:40,794
+Setup is one signature.
+
+13
+00:00:40,794 --> 00:00:43,501
+She picks a reserve and sees what it buys her:
+
+14
+00:00:43,501 --> 00:00:45,973
+her loan can absorb a much deeper fall.
+
+15
+00:00:45,973 --> 00:00:51,836
+A rescue starts below the level she chooses and lifts the loan back to 150%.
+
+16
+00:00:59,727 --> 00:01:01,222
+Could a keeper cheat?
+
+17
+00:01:01,222 --> 00:01:03,415
+This one tries to copy her loan key.
+
+18
+00:01:03,415 --> 00:01:05,972
+The contract refuses, and names the rule.
+
+19
+00:01:05,972 --> 00:01:08,550
+Paryon's own contracts would have let it through.
+
+20
+00:01:09,458 --> 00:01:11,303
+Now BCH crashes.
+
+21
+00:01:11,303 --> 00:01:13,901
+Her loan falls to 115%.
+
+22
+00:01:13,901 --> 00:01:17,315
+A keeper with no keys and no money sends the rescue.
+
+23
+00:01:17,315 --> 00:01:21,897
+The reserve flows into her loan, and it is back near 150%.
+
+24
+00:01:21,897 --> 00:01:25,101
+She was asleep.
+
+25
+00:01:31,700 --> 00:01:33,383
+And she can always leave.
+
+26
+00:01:33,383 --> 00:01:36,665
+One signature returns her loan key and her reserve.
+
+27
+00:01:36,665 --> 00:01:38,495
+Nobody else can take them.
+
+28
+00:01:41,138 --> 00:01:44,999
+And this is not a mock-up: the same rescue ran on chipnet,
+
+29
+00:01:44,999 --> 00:01:49,476
+accepted by a real node next to Paryon's unmodified contracts.
+
+30
+00:01:50,434 --> 00:01:54,611
+Every guarantee is enforced on chain by Bitcoin Cash itself.
+
+31
+00:01:54,611 --> 00:01:57,273
+No server, no database, no account.
+
+32
+00:01:57,273 --> 00:01:58,400
+Backstop.

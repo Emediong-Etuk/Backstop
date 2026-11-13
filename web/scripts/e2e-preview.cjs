@@ -10,8 +10,12 @@ const path = require('node:path');
 const root = path.join(__dirname, '..', 'out');
 const shots = process.argv[2];
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.txt': 'text/plain' };
+// BASE_PATH serves the site under a folder, as GitHub Pages does (e.g. BASE_PATH=/Backstop).
+const basePath = process.env.BASE_PATH ?? '';
 const server = http.createServer((req, res) => {
-  let file = path.join(root, decodeURIComponent(new URL(req.url, 'http://x').pathname));
+  const pathname = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+  if (basePath && !pathname.startsWith(basePath + '/')) { res.writeHead(404); res.end(); return; }
+  let file = path.join(root, pathname.slice(basePath.length));
   if (fs.existsSync(file) && fs.statSync(file).isDirectory()) file = path.join(file, 'index.html');
   if (!fs.existsSync(file)) { res.writeHead(404); res.end(); return; }
   res.writeHead(200, { 'content-type': types[path.extname(file)] ?? 'application/octet-stream' });
@@ -20,7 +24,7 @@ const server = http.createServer((req, res) => {
 
 (async () => {
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
-  const url = `http://127.0.0.1:${server.address().port}/?preview`;
+  const url = `http://127.0.0.1:${server.address().port}${basePath}/?preview`;
   const browser = await chromium.launch();
   const failures = [];
   for (const [name, options] of [['desktop', { viewport: { width: 900, height: 1100 } }], ['phone', devices['iPhone 13']]]) {
@@ -32,11 +36,16 @@ const server = http.createServer((req, res) => {
       await page.goto(url);
       await step('1-your-loan', () => page.getByRole('heading', { name: 'Your loan' }).waitFor({ timeout: 60000 }));
       await step('2-protected', async () => {
+        // The judge path: defaults only (the preview's cooldown is one block).
         await page.locator('#reserve').fill('0.3');
-        await page.getByText('More settings').click();
-        await page.locator('#cooldown').selectOption('1');
         await page.getByRole('button', { name: 'Protect my loan' }).click();
         await page.getByRole('heading', { name: 'Your loan is protected' }).waitFor({ timeout: 60000 });
+      });
+      await step('2b-attack-refused', async () => {
+        for (const name of ['Steal the reserve', 'Overcharge the fee', 'Copy the loan key']) {
+          await page.getByRole('button', { name }).click();
+          await page.getByText('Refused', { exact: true }).waitFor({ timeout: 60000 });
+        }
       });
       await step('3-price-falls', async () => {
         await page.getByRole('button', { name: 'Price to $265' }).click();

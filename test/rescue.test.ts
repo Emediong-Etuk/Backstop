@@ -8,7 +8,20 @@
 import { describe, expect, it } from 'vitest';
 import { hexToBin } from '@bitauth/libauth';
 import { collateralRatioBps, encodeLoanState, parseLoanState, readRescueState } from '@backstop/contracts';
+import { MemCashProvider } from '@backstop/demo';
 import { BCH, createWorld, track, DEFAULTS, dollars, expectAccepted, expectRejected, keeper, LOAN_KEY_CATEGORY, PARYON_TOKEN_ID, stranger, type Mode } from './harness.js';
+
+// Where Paryon's real contracts refuse the same change before Backstop's require is reached.
+const PARYON_PRICE = /at input 0 in contract PriceContractGuarded\.cash at line (95|96|98|101)/;
+const PARYON_PRICE_INPUT = /at input 3 in contract manageLoan\.cash at line 36/;
+const PARYON_LOAN = /at input (1|3) in contract (Loan|manageLoan)\.cash at line (31|39|51)/;
+const PARYON_LOAN_OUT = /at input 3 in contract manageLoan\.cash at line (112|113)/;
+// Rejected by one of Paryon's own contracts (the line differs per attack).
+const PARYON_ANY = /at input [0-3] in contract (Loan|manageLoan)\.cash at line (37|115|121|126|127)/;
+const PARYON_ZERO_PRICE = /at input 3 in contract manageLoan\.cash at line 99/;
+const PARYON_OTHER_LOAN = /at input 3 in contract manageLoan\.cash at line 45/;
+const PARYON_MANAGE_OUT = /at input 3 in contract manageLoan\.cash at line 125/;
+const PARYON_SIDECAR = /at input 2 in contract Loan\.cash at line (37|39)/;
 
 const MODES: Array<[string, Mode]> = [
   ["against Paryon's real contracts", 'paryon'],
@@ -232,6 +245,272 @@ describe.each(MODES)('A rescue %s', (_label, mode) => {
       parts.inputs[3] = { utxo: impostor, unlocker: keeper.signer.unlockP2PKH() };
       parts.outputs[3] = { to: hexToBin(impostorBytecode), amount: 1_000n, token: world.utxos.manage.token };
       expectRejected(world, parts, /Input 3 must be Paryon's manage function/);
+    });
+
+    // A migrated price contract (Paryon's team holds a migration key) could try to change its own
+    // output during a rescue. Paryon's current price contract refuses this itself; Backstop must too.
+    it('the price contract coming back at another address', () => {
+      const world = createWorld({ mode });
+      const parts = world.rescue();
+      parts.outputs[0].to = hexToBin(keeper.lockingBytecode);
+      expectRejected(world, parts, /Price contract must be returned unchanged/, PARYON_PRICE);
+    });
+
+    it('the price contract coming back without its token', () => {
+      const world = createWorld({ mode });
+      const parts = world.rescue();
+      parts.outputs[0].token = undefined;
+      expectRejected(world, parts, /Price contract must be returned unchanged/, PARYON_PRICE);
+    });
+
+    it('the price contract coming back with a different price', () => {
+      const world = createWorld({ mode });
+      const parts = world.rescue();
+      parts.outputs[0].token = { ...parts.outputs[0].token!, nft: { capability: 'mutable', commitment: '00' + 'e9030000' + '01000000' } };
+      expectRejected(world, parts, /Price contract must be returned unchanged/, PARYON_PRICE);
+    });
+
+    it('a Paryon loan passed off as the price contract', () => {
+      // Loans carry the same Paryon category and capability as price contracts; only the state's
+      // first byte tells them apart. A loan's state read as a price could make any loan look in danger.
+      const world = createWorld({ mode, priceCents: DEFAULTS.safePriceCents });
+      const parts = world.rescue({ topUpSats: BCH / 10n });
+      const loanAsPrice = world.addUtxo(world.contracts.price.lockingBytecode, {
+        vout: 0, satoshis: 1_000n,
+        token: { category: PARYON_TOKEN_ID, amount: 0n, nft: { capability: 'mutable', commitment: '01' + 'e8030000' + '01000000' } },
+      });
+      parts.inputs[0] = { ...parts.inputs[0], utxo: loanAsPrice };
+      parts.outputs[0] = { ...parts.outputs[0], token: loanAsPrice.token };
+      expectRejected(world, parts, /Input 0 must be a Paryon price contract/, PARYON_PRICE_INPUT);
+    });
+
+    it('the price contract carrying tokens out of the rescue', () => {
+      const world = createWorld({ mode });
+      const parts = world.rescue();
+      const withTokens = world.addUtxo(world.contracts.price.lockingBytecode, {
+        vout: 0, satoshis: world.utxos.price.satoshis, token: { ...world.utxos.price.token!, amount: 1_000n },
+      });
+      parts.inputs[0] = { ...parts.inputs[0], utxo: withTokens };
+      parts.outputs[0] = { ...parts.outputs[0], token: withTokens.token };
+      expectRejected(world, parts, /Price contract must be returned unchanged/, PARYON_PRICE);
+    });
+
+    it('the sidecar being moved', () => {
+      const world = createWorld({ mode });
+      const parts = world.rescue();
+      parts.outputs[2].to = hexToBin(keeper.lockingBytecode);
+      expectRejected(world, parts, /Loan sidecar must be returned unchanged/, PARYON_SIDECAR);
+    });
+
+    it('the sidecar losing its token', () => {
+      const world = createWorld({ mode });
+      const parts = world.rescue();
+      parts.outputs[2].token = undefined;
+      expectRejected(world, parts, /Loan sidecar must be returned unchanged/, PARYON_SIDECAR);
+    });
+
+    it('the sidecar coming back with a changed commitment', () => {
+      const world = createWorld({ mode });
+      const parts = world.rescue();
+      parts.outputs[2].token = { ...parts.outputs[2].token!, nft: { capability: 'none', commitment: 'ff' } };
+      expectRejected(world, parts, /Loan sidecar must be returned unchanged/, PARYON_SIDECAR);
+    });
+
+    it('a reserve input carrying tokens (the rescue would burn them)', () => {
+      const world = createWorld({ mode });
+      const parts = world.rescue();
+      const tokenReserve = world.addUtxo(world.vault.lockingBytecode, {
+        vout: 1, satoshis: world.utxos.reserve.satoshis, token: { category: 'dd'.repeat(32), amount: 1_000n },
+      });
+      parts.inputs[5] = { ...parts.inputs[5], utxo: tokenReserve };
+      // Carry the tokens on, so the transaction is well formed; the input check comes first.
+      parts.outputs[5] = { ...parts.outputs[5], token: tokenReserve.token };
+      expectRejected(world, parts, /Reserve input must hold no tokens/);
+    });
+
+    // Several requires share one message (e.g. "Price contract must be returned unchanged"). Each
+    // test below breaks exactly one of them, so every single check is shown to matter on its own.
+    it('the price contract coming back with a lesser capability', () => {
+      const world = createWorld({ mode });
+      const parts = world.rescue();
+      parts.outputs[0].token = { ...parts.outputs[0].token!, nft: { ...parts.outputs[0].token!.nft!, capability: 'none' } };
+      expectRejected(world, parts, /Price contract must be returned unchanged/, PARYON_PRICE);
+    });
+
+    it('a loan input that is not a mutable Paryon NFT', () => {
+      const world = createWorld({ mode });
+      const parts = world.rescue();
+      const frozen = world.addUtxo(world.contracts.loan.lockingBytecode, {
+        vout: 2, satoshis: world.utxos.loan.satoshis, token: { ...world.utxos.loan.token!, nft: { ...world.utxos.loan.token!.nft!, capability: 'none' } },
+      });
+      // Same transaction as the sidecar, so only the category check is wrong.
+      frozen.txid = world.utxos.sidecar.txid;
+      parts.inputs[1] = { ...parts.inputs[1], utxo: frozen };
+      parts.outputs[1] = { ...parts.outputs[1], token: frozen.token };
+      expectRejected(world, parts, /Input 1 must be a Paryon loan/, PARYON_LOAN);
+    });
+
+    it('a price contract passed off as the loan', () => {
+      const world = createWorld({ mode });
+      const parts = world.rescue();
+      const state = world.utxos.loan.token!.nft!.commitment;
+      const priceAsLoan = world.addUtxo(world.contracts.loan.lockingBytecode, {
+        vout: 2, satoshis: world.utxos.loan.satoshis, token: { ...world.utxos.loan.token!, nft: { capability: 'mutable', commitment: '00' + state.slice(2) } },
+      });
+      priceAsLoan.txid = world.utxos.sidecar.txid;
+      parts.inputs[1] = { ...parts.inputs[1], utxo: priceAsLoan };
+      parts.outputs[1] = { ...parts.outputs[1], token: priceAsLoan.token };
+      expectRejected(world, parts, /Input 1 must be a Paryon loan/, PARYON_LOAN);
+    });
+
+    it('a loan from the same transaction that is not right before the sidecar', () => {
+      const world = createWorld({ mode });
+      const parts = world.rescue();
+      const neighbour = world.addUtxo(world.contracts.loan.lockingBytecode, { vout: 0, satoshis: world.utxos.loan.satoshis, token: world.utxos.loan.token });
+      neighbour.txid = world.utxos.sidecar.txid;
+      parts.inputs[1] = { ...parts.inputs[1], utxo: neighbour };
+      expectRejected(world, parts, /Input 1 must be the loan of this sidecar/, PARYON_LOAN);
+    });
+
+    it('the loan being moved to another contract', () => {
+      const world = createWorld({ mode });
+      const parts = world.rescue();
+      parts.outputs[1].to = hexToBin(keeper.lockingBytecode);
+      expectRejected(world, parts, /Loan must stay in the Paryon loan contract/, PARYON_LOAN_OUT);
+    });
+
+    it('the loan coming back with a lesser capability', () => {
+      const world = createWorld({ mode });
+      const parts = world.rescue();
+      parts.outputs[1].token = { ...parts.outputs[1].token!, nft: { ...parts.outputs[1].token!.nft!, capability: 'none' } };
+      expectRejected(world, parts, /Loan must stay in the Paryon loan contract/, PARYON_LOAN_OUT);
+    });
+
+    it('the loan receiving tokens', () => {
+      const world = createWorld({ mode });
+      const parts = world.rescue();
+      // Tokens brought in on the price contract and passed to the loan; the price output keeps its state.
+      const withTokens = world.addUtxo(world.contracts.price.lockingBytecode, {
+        vout: 0, satoshis: world.utxos.price.satoshis, token: { ...world.utxos.price.token!, amount: 1_000n },
+      });
+      parts.inputs[0] = { ...parts.inputs[0], utxo: withTokens };
+      parts.outputs[1].token = { ...parts.outputs[1].token!, amount: 1_000n };
+      expectRejected(world, parts, /Loan must not receive tokens/, PARYON_ANY);
+    });
+
+    it('the sidecar turned into a minting copy of the loan key', async () => {
+      const world = createWorld({ mode });
+      const parts = world.rescue();
+      parts.outputs[2].token = { ...parts.outputs[2].token!, nft: { ...parts.outputs[2].token!.nft!, capability: 'minting' } };
+      if (mode === 'paryon') {
+        // CashScript's debugger cannot map Paryon's failing line here (it crashes instead), so check
+        // with the in-memory node, which runs the real BCH VM: it refuses the attack, and the same
+        // rescue without the change is accepted by a fresh node.
+        const node = createWorld({ mode, provider: new MemCashProvider() });
+        const attack = node.rescue();
+        attack.outputs[2].token = { ...attack.outputs[2].token!, nft: { ...attack.outputs[2].token!.nft!, capability: 'minting' } };
+        await expect(node.provider.sendRawTransaction(node.build(attack).build())).rejects.toThrow(/error in evaluating input index 2/);
+        const control = createWorld({ mode, provider: new MemCashProvider() });
+        await expect(control.provider.sendRawTransaction(control.build(control.rescue()).build())).resolves.toMatch(/^[0-9a-f]{64}$/);
+      } else {
+        expectRejected(world, parts, /Loan sidecar must be returned unchanged/);
+      }
+    });
+
+    it("a manage function input with the wrong token", () => {
+      const world = createWorld({ mode });
+      const parts = world.rescue();
+      const wrong = world.addUtxo(world.contracts.manage.lockingBytecode, {
+        vout: 0, satoshis: world.utxos.manage.satoshis, token: { ...world.utxos.manage.token!, nft: { ...world.utxos.manage.token!.nft!, capability: 'mutable' } },
+      });
+      parts.inputs[3] = { ...parts.inputs[3], utxo: wrong };
+      parts.outputs[3] = { ...parts.outputs[3], token: { ...world.utxos.manage.token! } };
+      expectRejected(world, parts, /Input 3 must be Paryon's manage function/, PARYON_ANY);
+    });
+
+    it('a manage function input with the wrong commitment', () => {
+      const world = createWorld({ mode });
+      const parts = world.rescue();
+      const wrong = world.addUtxo(world.contracts.manage.lockingBytecode, {
+        vout: 0, satoshis: world.utxos.manage.satoshis, token: { ...world.utxos.manage.token!, nft: { ...world.utxos.manage.token!.nft!, commitment: '03' } },
+      });
+      parts.inputs[3] = { ...parts.inputs[3], utxo: wrong };
+      parts.outputs[3] = { ...parts.outputs[3], token: wrong.token };
+      expectRejected(world, parts, /Input 3 must be Paryon's manage function/);
+    });
+
+    it('the manage function coming back with the wrong token', () => {
+      const world = createWorld({ mode });
+      const parts = world.rescue();
+      parts.outputs[3].token = { ...parts.outputs[3].token!, nft: { capability: 'none', commitment: '02' }, category: LOAN_KEY_CATEGORY };
+      expectRejected(world, parts, /Manage function must be returned unchanged/, PARYON_ANY);
+    });
+
+    it('the manage function moved to another address, token and all', () => {
+      const world = createWorld({ mode });
+      const parts = world.rescue();
+      parts.outputs[3].to = hexToBin(keeper.lockingBytecode);
+      expectRejected(world, parts, /Manage function must be returned unchanged/, PARYON_MANAGE_OUT);
+    });
+
+    it('the manage function coming back with the wrong commitment', () => {
+      const world = createWorld({ mode });
+      const parts = world.rescue();
+      parts.outputs[3].token = { ...parts.outputs[3].token!, nft: { ...parts.outputs[3].token!.nft!, commitment: '03' } };
+      expectRejected(world, parts, /Manage function must be returned unchanged/, PARYON_ANY);
+    });
+
+    it('the loan key coming back with a different value', () => {
+      const world = createWorld({ mode });
+      const parts = world.rescue();
+      parts.outputs[4].amount += 1_000n;
+      parts.outputs[5].amount -= 1_000n;
+      expectRejected(world, parts, /Loan key must return unchanged/, PARYON_ANY);
+    });
+
+    it('the remaining reserve carrying a copy of the loan key', () => {
+      const world = createWorld({ mode });
+      const parts = world.rescue();
+      parts.outputs[5].token = { category: LOAN_KEY_CATEGORY, amount: 0n, nft: { capability: 'none', commitment: '' } };
+      expectRejected(world, parts, /Remaining reserve must hold no tokens/);
+    });
+
+    it('a price of zero, which would make every loan look in danger', () => {
+      const world = createWorld({ mode });
+      const parts = world.rescue();
+      const zero = world.addUtxo(world.contracts.price.lockingBytecode, {
+        vout: 0, satoshis: world.utxos.price.satoshis,
+        token: { ...world.utxos.price.token!, nft: { capability: 'mutable', commitment: '00' + 'e8030000' + '00000000' } },
+      });
+      parts.inputs[0] = { ...parts.inputs[0], utxo: zero };
+      parts.outputs[0] = { ...parts.outputs[0], token: zero.token };
+      expectRejected(world, parts, /Price must be positive/, PARYON_ZERO_PRICE);
+    });
+
+    it("another borrower's loan topped up together with its own sidecar", () => {
+      const world = createWorld({ mode });
+      const parts = world.rescue();
+      // A complete, correctly paired loan and sidecar, but for a different loan key.
+      const otherTxid = 'ab'.repeat(32);
+      const otherLoan = world.addUtxo(world.contracts.loan.lockingBytecode, { txid: otherTxid, vout: 2, satoshis: world.utxos.loan.satoshis, token: world.utxos.loan.token });
+      const otherSidecar = world.addUtxo(world.contracts.sidecar.lockingBytecode, {
+        txid: otherTxid, vout: 3, satoshis: world.utxos.sidecar.satoshis, token: { ...world.utxos.sidecar.token!, category: 'cd'.repeat(32) },
+      });
+      parts.inputs[1] = { ...parts.inputs[1], utxo: otherLoan };
+      parts.inputs[2] = { ...parts.inputs[2], utxo: otherSidecar };
+      parts.outputs[2] = { ...parts.outputs[2], token: otherSidecar.token };
+      expectRejected(world, parts, /Input 2 must be this loan's sidecar/, PARYON_OTHER_LOAN);
+    });
+
+    it('a copy of the loan key, held outside the vault, used in place of the vault key', () => {
+      // The loan key is a minting NFT, so copies can exist (minted before setup). A rescue must
+      // still use the vault's own key output, not a copy from somewhere else.
+      const world = createWorld({ mode });
+      const parts = world.rescue();
+      const copy = world.addUtxo(keeper.lockingBytecode, { vout: 0, satoshis: world.utxos.key.satoshis, token: world.utxos.key.token });
+      parts.inputs[4] = { utxo: copy, unlocker: keeper.signer.unlockP2PKH() };
+      // Paryon's manage function wants the key back where it came from, so it refuses first.
+      expectRejected(world, parts, /Key must come from this vault/, /at input 3 in contract manageLoan\.cash at line 118/);
     });
 
     it('vault inputs placed anywhere but positions 4 and 5', () => {

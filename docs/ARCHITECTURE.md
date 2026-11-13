@@ -88,15 +88,17 @@ The owner can always leave.
 
 ### On chipnet
 
-Fill this table from a real run with `npm run demo:links`, which prints it from chain data:
+One full run on chipnet, 12–13 November 2026. The borrower used Cashonize over WizardConnect for the setup and the withdraw; the rescue was sent by the keeper CLI, which holds no keys. The demo price was $30,000 so that the whole run fit in one faucet request (a $115 loan of 0.005 BCH at 130%). The table is printed from chain data by `npm run demo:links`:
 
 | Transaction | What it does | Explorer |
 |---|---|---|
-| Demo deployment | *(run `npm run demo:links`)* | |
-| Setup | | |
-| Price update | | |
-| Rescue | | |
-| Withdraw | | |
+| Demo deployment | Paryon's price contract, manage function, demo loan and loan key | [b6bdb31f8622…](https://chipnet.imaginary.cash/tx/b6bdb31f8622c03ad0eb3ac1ae686f66afce6586e5a5f1e74d082d2224d8e67f) |
+| Setup | Loan key and a 0.003 BCH reserve into the vault (one Cashonize signature) | [ff1affd37f70…](https://chipnet.imaginary.cash/tx/ff1affd37f70464bf994d4129b510fd9427cbe290fc349775855828611b0cca7) |
+| Price update | DEMO oracle price $30,000 → $26,500 into Paryon's price contract; the loan falls to 115% | [cb31f9f0a064…](https://chipnet.imaginary.cash/tx/cb31f9f0a064dbc4a92712925af7d6b9e42f84424e3e0c35280f5129a3f310e7) |
+| Rescue | 0.0015 BCH from the reserve into the loan, back to 149.8%; 2,629 sats fee, no signatures | [24aa5b20a23b…](https://chipnet.imaginary.cash/tx/24aa5b20a23bcf3910cc72b004307127ee18460c1e5f1f8eb9f7a67a2dc0d399) |
+| Withdraw | Loan key and the rest of the reserve back to the borrower (`ownerWithdraw`, one Cashonize signature) | [962af902b19a…](https://chipnet.imaginary.cash/tx/962af902b19aa1df7b86db3eb4f7b15fc612f51dec2ef8829ff6ba34cdb78aab) |
+
+The rescue waited one block after the setup: the keeper reported "reserve is in its cooldown (0/1 blocks)" until the reserve was confirmed, then sent the rescue on its next check.
 
 ## Every guarantee is a `require`
 
@@ -105,20 +107,20 @@ Each rescue test runs twice:
 - against Paryon's real compiled contracts, where the transaction must fail;
 - with Paryon's checks replaced by permissive stand-ins (`test/fixtures/PermissiveStandIn.cash`), where it must fail on Backstop's own `require`, matched by its message.
 
-So none of these depends on Paryon catching the same mistake. Deleting a `require` turns its tests red; I checked this for four of them in Phase 1.
+So none of these depends on Paryon catching the same mistake. A mutation test ([`MUTATION.md`](MUTATION.md), `node test/mutation.mjs`) switches off each of the 55 `require`s in turn and runs the tests: **54 are caught**, each by a named test. The 55th (line 54) checks the same equality as line 66 from the other vault input, so with it off line 66 still refuses everything; the report explains it.
 
 | A rescue cannot… | Backstop.cash | Test (`test/rescue.test.ts` unless noted) |
 |---|---|---|
 | smuggle in extra inputs (other tokens or authority) | 60 | an extra input smuggled into the rescue |
 | add outputs that siphon value or carry tokens | 62 | an extra output siphoning value |
 | use vault UTXOs anywhere but positions 4 and 5, or from different vaults | 54, 56, 66 | vault inputs placed anywhere but positions 4 and 5; `owner.test.ts`: nobody can take the reserve alone by calling the rescue path |
-| use some other loan's key, or swap key and reserve | 68, 70 | vault inputs placed anywhere but positions 4 and 5 |
+| use some other loan's key, or swap key and reserve | 68, 70 | vault inputs placed anywhere but positions 4 and 5; a reserve input carrying tokens (the rescue would burn them) |
 | run again before the cooldown | 75 (plus BIP68 at the node) | a rescue before the cooldown has passed; `node.test.ts`: the node refuses a rescue until the reserve is as old as the cooldown |
-| use a fake price | 79, 81, 89 | a fake price contract reporting a low price |
-| let a (migrated) price contract leak tokens or change state | 83–86 | (shape covered by every accepted rescue; no dedicated attack test) |
+| use a fake price | 79, 81, 89 | a fake price contract reporting a low price; a Paryon loan passed off as the price contract |
+| let a (migrated) price contract leak tokens or change state | 83–86 | the price contract coming back at another address; …without its token; …with a different price; the price contract carrying tokens out of the rescue |
 | top up someone else's loan | 94–99 | the top-up going into somebody else's loan |
 | move the loan, raise its debt, repay with outside PUSD, or change its interest manager | 102–107 | a keeper increasing the loan's debt; a keeper making themselves the loan's interest manager |
-| move or alter the sidecar | 109–111 | (Paryon also enforces this, `LoanSidecar.cash:21-24`; no dedicated attack test) |
+| move or alter the sidecar | 109–111 | the sidecar being moved; the sidecar losing its token; the sidecar coming back with a changed commitment |
 | replace Paryon's manage function with another contract | 115–117 | some other contract standing in for Paryon's manage function |
 | hide a key copy in the manage function's output | 119–121 | a keeper hiding a copy of the loan key in the manage function output |
 | withdraw collateral | 128 | a keeper withdrawing collateral with the key |

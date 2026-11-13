@@ -11,6 +11,7 @@ import { ConnectScreen } from '../components/ConnectScreen';
 import { SetupScreen } from '../components/SetupScreen';
 import { StatusScreen } from '../components/StatusScreen';
 import { PreviewPanel } from '../components/PreviewPanel';
+import { Icon } from '../components/ui';
 
 export default function Home() {
   const [chain, setChain] = useState<Chain>();
@@ -92,70 +93,99 @@ export default function Home() {
   const activeVault = position?.vaults.find((v) => v.active);
 
   return (
-    <main>
+    <>
       <header className="topbar">
-        <div className="brand">
-          <img src="icon.svg" alt="" width={28} height={28} />
-          Backstop
-        </div>
-        <div className="actions">
-          {position && <span className="pill num" title={chain?.kind === 'preview' ? 'Local preview price' : 'Price from the demo oracle on chipnet'}>BCH {usd(position.priceCents)}{chain?.kind === 'chipnet' ? ' · demo price feed' : ''}</span>}
-          <span className="pill warn">{chain?.kind === 'preview' ? 'Local preview' : 'Chipnet test network'}</span>
-          {wallet && wallet.kind !== 'preview' && (
-            <button className="link small" onClick={async () => { await wallet.disconnect(); setWallet(undefined); setPosition(undefined); }}>
-              Disconnect {shortId(wallet.address.split(':')[1] ?? wallet.address)}
-            </button>
-          )}
+        <div className="topbar-inner">
+          <div className="brand">
+            <span className="brand-mark"><img src="icon.svg" alt="" width={30} height={30} /></span>
+            <span>Backstop</span>
+          </div>
+          <div className="topbar-actions">
+            {position && (
+              <span className="pill price-pill num" title={chain?.kind === 'preview' ? 'Local preview price' : 'Price from the demo oracle on chipnet'}>
+                <span className="live-dot" /> BCH {usd(position.priceCents)}{chain?.kind === 'chipnet' ? <span className="pill-note"> · demo price feed</span> : ''}
+              </span>
+            )}
+            <span className="pill warn">{chain?.kind === 'preview' ? 'Local preview' : 'Chipnet test network'}</span>
+            {wallet && wallet.kind !== 'preview' && (
+              <button className="pill wallet-pill" onClick={async () => { await wallet.disconnect(); setWallet(undefined); setPosition(undefined); }}>
+                <span className="wallet-dot" /> Disconnect {shortId(wallet.address.split(':')[1] ?? wallet.address)}
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
-      {chain?.kind === 'preview' && (
-        <p className="banner">Local preview: a test chain inside this page with a demo loan and a test wallet. Nothing here is real or leaves your browser.</p>
-      )}
-      {chain?.kind === 'chipnet' && (
-        <p className="banner">Test network only. Prices come from a <strong>demo price feed</strong> that this project controls, so the price can be moved for the demo. The main network would use the General Protocols price oracle.</p>
-      )}
-      {chainError && <p className="banner error" role="alert">{chainError} <a href="?preview">Try the local preview.</a></p>}
-      {readError && <p className="banner error" role="alert">{readError}</p>}
+      <main>
+        {chain?.kind === 'preview' && (
+          <p className="banner info">Local preview: a test chain inside this page with a demo loan and a test wallet. Nothing here is real or leaves your browser.</p>
+        )}
+        {chain?.kind === 'chipnet' && (
+          <p className="banner info">Test network only. Prices come from a <strong>demo price feed</strong> that this project controls, so the price can be moved for the demo. The main network would use the General Protocols price oracle.</p>
+        )}
+        {chainError && <p className="banner error" role="alert">{chainError} <a href="?preview">Try the local preview.</a></p>}
+        {readError && <p className="banner error" role="alert">{readError}</p>}
+
+        {!chain && !chainError && <Skeleton label="Connecting to the network…" />}
+        {!wallet && chain && <ConnectScreen chain={chain} onConnected={setWallet} />}
+        {wallet && !position && !readError && <Skeleton label="Reading your loan from the chain…" />}
+
+        {wallet && position && activeVault && (
+          <StatusScreen view={activeVault} priceCents={position.priceCents} explorerTx={chain?.explorerTx} onWithdraw={withdraw} />
+        )}
+        {wallet && position && !activeVault && position.loans.length > 1 && (
+          <div className="card loan-picker">
+            <label htmlFor="loan">This wallet holds {position.loans.length} loans. Which one should Backstop protect?</label>
+            <select id="loan" value={Math.min(loanIndex, position.loans.length - 1)} onChange={(e) => setLoanIndex(Number(e.target.value))}>
+              {position.loans.map((loan, i) => (
+                <option key={loan.loanKeyCategory} value={i}>{bch(loan.collateralSats, 4)} collateral, {usd(loan.debtCents)} borrowed (loan {shortId(loan.loanKeyCategory)})</option>
+              ))}
+            </select>
+          </div>
+        )}
+        {wallet && position && !activeVault && position.loans[0] && (() => {
+          const loan = position.loans[Math.min(loanIndex, position.loans.length - 1)];
+          return <SetupScreen key={loan.loanKeyCategory} loan={loan} priceCents={position.priceCents} walletBchSats={position.walletBchSats} onProtect={protect} defaultCooldownBlocks={chain?.kind === 'preview' ? 1n : undefined} />;
+        })()}
+        {wallet && position && !activeVault && !position.loans[0] && (
+          <div className="card empty-state">
+            <span className="badge-icon"><Icon name="key" /></span>
+            <h2>No ParyonUSD loan in this wallet</h2>
+            <p className="muted">Backstop protects a loan whose loan key is in the connected wallet. Connect the wallet that holds your loan key.</p>
+          </div>
+        )}
+
+        {preview && <PreviewPanel controls={preview} canAttack={!!activeVault} onChange={async () => { setNotice(undefined); await refresh(); }} />}
+
+        <footer>
+          <span className="brand-mini"><img src="icon.svg" alt="" width={18} height={18} /> Backstop</span>
+          A hackathon project for BCH BLAZE 2026. Your BCH is held by an on-chain contract, not by this site:
+          the site keeps no data and has no server.
+        </footer>
+      </main>
+
       {notice && (
-        <p className="banner ok" role="status">
-          {notice.text} {notice.txid && chain?.explorerTx && <a href={chain.explorerTx(notice.txid)} target="_blank" rel="noreferrer">See the transaction</a>}
-        </p>
-      )}
-
-      {!wallet && chain && <ConnectScreen chain={chain} onConnected={setWallet} />}
-      {wallet && !position && !readError && <p className="muted">Reading your loan from the chain…</p>}
-
-      {wallet && position && activeVault && (
-        <StatusScreen view={activeVault} priceCents={position.priceCents} explorerTx={chain?.explorerTx} onWithdraw={withdraw} />
-      )}
-      {wallet && position && !activeVault && position.loans.length > 1 && (
-        <div className="card">
-          <label htmlFor="loan">This wallet holds {position.loans.length} loans. Which one should Backstop protect?</label>
-          <select id="loan" value={Math.min(loanIndex, position.loans.length - 1)} onChange={(e) => setLoanIndex(Number(e.target.value))}>
-            {position.loans.map((loan, i) => (
-              <option key={loan.loanKeyCategory} value={i}>{bch(loan.collateralSats, 4)} collateral, {usd(loan.debtCents)} borrowed (loan {shortId(loan.loanKeyCategory)})</option>
-            ))}
-          </select>
+        <div className="toast" role="status" key={notice.txid ?? notice.text}>
+          <span className="toast-icon"><Icon name="check" size={18} /></span>
+          <span>{notice.text} {notice.txid && chain?.explorerTx && <a href={chain.explorerTx(notice.txid)} target="_blank" rel="noreferrer">See the transaction</a>}</span>
+          <button className="toast-close" aria-label="Dismiss" onClick={() => setNotice(undefined)}>×</button>
+          <span className="toast-timer" />
         </div>
       )}
-      {wallet && position && !activeVault && position.loans[0] && (() => {
-        const loan = position.loans[Math.min(loanIndex, position.loans.length - 1)];
-        return <SetupScreen key={loan.loanKeyCategory} loan={loan} priceCents={position.priceCents} walletBchSats={position.walletBchSats} onProtect={protect} />;
-      })()}
-      {wallet && position && !activeVault && !position.loans[0] && (
-        <div className="card">
-          <h2>No ParyonUSD loan in this wallet</h2>
-          <p className="muted">Backstop protects a loan whose loan key is in the connected wallet. Connect the wallet that holds your loan key.</p>
-        </div>
-      )}
+    </>
+  );
+}
 
-      {preview && <PreviewPanel controls={preview} onChange={async () => { setNotice(undefined); await refresh(); }} />}
-
-      <footer>
-        Backstop is a hackathon project for BCH BLAZE 2026. Your BCH is held by an on-chain contract, not by this site:
-        the site keeps no data and has no server.
-      </footer>
-    </main>
+function Skeleton({ label }: { label: string }) {
+  return (
+    <div className="screen" aria-busy="true">
+      <p className="sr-only" role="status">{label}</p>
+      <div className="card skeleton-card">
+        <div className="skeleton line wide" />
+        <div className="skeleton line" />
+        <div className="skeleton-row"><div className="skeleton block" /><div className="skeleton block" /><div className="skeleton block" /></div>
+      </div>
+      <p className="muted small center">{label}</p>
+    </div>
   );
 }

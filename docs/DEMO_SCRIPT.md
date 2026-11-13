@@ -4,13 +4,19 @@ Three windows on screen: the **web app** (left), the **keeper** terminal (top ri
 
 ## Before you record (about 30 minutes, once)
 
+0. Check that your chipnet server is on the newest block, and set `CHIPNET_ELECTRUM_SERVER` in `.env` to one that is:
+
+   ```bash
+   npm run demo:servers
+   ```
+
 1. Keys and coins:
 
    ```bash
    npm run demo:keys -- --write
    ```
 
-   Fund the printed funder address with about 1.2 tBCH from https://chipnet.bch.ninja/.
+   Fund the printed funder address with about 1.2 tBCH from a chipnet faucet on the same chain as your server (or about 0.07 tBCH for the smaller demo in the README).
 
 2. In Cashonize (chipnet), copy your wallet's token-aware address (`bchtest:z…`) and fund it with about 0.6 tBCH from the faucet.
 
@@ -33,6 +39,18 @@ Three windows on screen: the **web app** (left), the **keeper** terminal (top ri
    ```bash
    npm run demo:crash -- --price 300
    ```
+
+**If you deployed the small version** (`--price 3000 --collateral 0.05`, or `--price 30000 --collateral 0.005`, as on the chipnet run), the story and the ratios are the same; only the BCH amounts and the prices change. Say once on camera that the demo price is high so the demo fits in faucet coins.
+
+| In the script | $300 version | $30,000 version |
+|---|---|---|
+| Collateral | 0.5 BCH | 0.005 BCH |
+| Reserve | 0.5 BCH | 0.003 BCH |
+| Rescue below | $287.50 | $28,750 |
+| Liquidated below | $253 | $25,300 |
+| Crash command | `--price 265` | `--price 26500` |
+| One rescue adds up to | 0.25 BCH | 0.0015 BCH |
+| Back to | 150% | 149.8% |
 
 **Cooldown:** a vault can only be rescued once its reserve is one block old (about 10 minutes, with the 10-minute setting). So record the setup, pause the recording until the next block, then record the crash. Say it on camera; it is one of the protections.
 
@@ -95,6 +113,6 @@ Click **Withdraw everything**, confirm, approve in Cashonize.
 ## If something goes wrong on the day
 
 - **Chipnet or WalletConnect is down:** open `http://localhost:3000/?preview` and use its buttons (*Price to $265*, *Run a keeper*). It is labelled as a local preview on screen.
-- **The keeper says "reserve is in its cooldown":** wait for the next block.
+- **The keeper says "reserve is in its cooldown":** wait for the next block. If it still says so after half an hour, run `npm run demo:servers`: your server may have stopped receiving blocks.
 - **Withdraw says your wallet needs a little BCH at the vault owner's address:** send about 0.0001 BCH to the address it shows (it is the address that held the loan key), then withdraw again.
 - **The keeper says "rescue would be too small":** the price is too close to the trigger. Crash a bit lower, e.g. `--price 255`.

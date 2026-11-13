@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Backstop video slides</title>
+<!-- Slides for the two submission videos. record.cjs shows one at a time with show(id). 1280x720 CSS pixels. -->
+<style>
+  :root {
+    --bg: #070b10; --surface: rgba(255,255,255,0.05); --border: rgba(255,255,255,0.1); --border-strong: rgba(255,255,255,0.18);
+    --text: #e9eef4; --muted: #8e9aab; --accent: #34d399; --accent-2: #22d3ee; --warn: #fbbf24; --danger: #fb7185; --violet: #a78bfa;
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 1280px; height: 720px; overflow: hidden; background: var(--bg); color: var(--text);
+    font: 20px/1.5 "Inter", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .bg { position: fixed; inset: 0; overflow: hidden; z-index: 0; }
+  .bg span { position: absolute; width: 900px; height: 900px; border-radius: 50%; filter: blur(110px); opacity: 0.3; animation: drift 20s ease-in-out infinite alternate; }
+  .bg span:nth-child(1) { background: radial-gradient(circle, var(--accent), transparent 65%); top: -450px; left: -250px; }
+  .bg span:nth-child(2) { background: radial-gradient(circle, var(--accent-2), transparent 65%); top: 100px; right: -450px; animation-delay: -6s; }
+  .bg span:nth-child(3) { background: radial-gradient(circle, #8b5cf6, transparent 65%); bottom: -550px; left: 300px; opacity: 0.18; animation-delay: -12s; }
+  @keyframes drift { to { transform: translate(80px, 60px) scale(1.08); } }
+  .grid { position: fixed; inset: 0; z-index: 0; opacity: 0.6;
+    background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 64px 64px; mask-image: radial-gradient(ellipse at 50% 0%, black, transparent 75%); -webkit-mask-image: radial-gradient(ellipse at 50% 0%, black, transparent 75%); }
+
+  .slide { position: absolute; inset: 0; z-index: 1; padding: 56px 72px 120px; display: none; }
+  .slide.on { display: block; }
+  .slide.on .in { animation: rise 0.8s var(--ease) both; }
+  .slide.on .in.d1 { animation-delay: 0.15s; } .slide.on .in.d2 { animation-delay: 0.3s; } .slide.on .in.d3 { animation-delay: 0.45s; }
+  .slide.on .in.d4 { animation-delay: 0.6s; } .slide.on .in.d5 { animation-delay: 0.75s; } .slide.on .in.d6 { animation-delay: 0.9s; }
+  @keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+  h1 { font-size: 72px; line-height: 1.05; margin: 0; letter-spacing: -0.04em; font-weight: 800; }
+  h2 { font-size: 42px; margin: 0 0 20px; letter-spacing: -0.03em; font-weight: 800; }
+  .eyebrow { color: var(--accent); font-size: 15px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .muted { color: var(--muted); }
+  .grad { background: linear-gradient(100deg, var(--accent) 10%, var(--accent-2) 60%, var(--violet)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 22px; backdrop-filter: blur(12px); }
+  .logo { width: 96px; height: 96px; border-radius: 26px; display: grid; place-items: center; background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    box-shadow: 0 0 0 1px rgba(52,211,153,0.4), 0 20px 70px -10px rgba(52,211,153,0.7); animation: breathe 3s ease-in-out infinite; }
+  @keyframes breathe { 50% { box-shadow: 0 0 0 1px rgba(52,211,153,0.5), 0 20px 100px -4px rgba(52,211,153,0.9); } }
+  .pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; font-size: 15px; font-weight: 600; background: var(--surface); border: 1px solid var(--border-strong); color: var(--muted); }
+  .center { display: grid; place-items: center; text-align: center; height: 100%; }
+  code, .mono { font-family: "DejaVu Sans Mono", ui-monospace, monospace; }
+
+  /* title */
+  .title-wrap { display: grid; justify-items: center; gap: 22px; margin-top: 70px; }
+  .title-wrap p { font-size: 26px; margin: 0; max-width: 900px; }
+  .tags { display: flex; gap: 10px; margin-top: 10px; }
+
+  /* problem */
+  .problem { display: grid; grid-template-columns: 1fr 1.25fr; gap: 40px; align-items: center; height: 100%; }
+  .clock { font-size: 120px; font-weight: 800; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+  .clock small { font-size: 46px; color: var(--muted); margin-left: 8px; }
+  .zzz { color: var(--muted); font-size: 22px; margin-top: 6px; }
+  .crash svg { width: 100%; height: auto; overflow: visible; }
+  .crash .line { fill: none; stroke: url(#crash-grad); stroke-width: 5; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
+  .slide.on .crash .line { animation: draw 4.5s var(--ease) 0.6s forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  .crash .liq { stroke: var(--danger); stroke-width: 2; stroke-dasharray: 8 8; }
+  .stamp { opacity: 0; transform: rotate(-8deg) scale(1.6); transform-origin: center; }
+  .slide.on .stamp { animation: stamp 0.5s var(--ease) 4.6s forwards; }
+  @keyframes stamp { to { opacity: 1; transform: rotate(-8deg) scale(1); } }
+  .stamp rect { fill: rgba(251,113,133,0.15); stroke: var(--danger); stroke-width: 3; }
+  .stamp text { fill: var(--danger); font-weight: 800; font-size: 30px; letter-spacing: 0.08em; text-anchor: middle; }
+  .lost { margin-top: 18px; font-size: 22px; }
+  .lost b { color: var(--danger); }
+
+  /* architecture diagram */
+  .arch svg { width: 100%; height: 520px; overflow: visible; }
+  .node rect { fill: rgba(255,255,255,0.05); stroke: var(--border-strong); stroke-width: 1.5; rx: 16; }
+  .node.vault rect.box { stroke: var(--accent); fill: rgba(52,211,153,0.06); }
+  .node.paryon rect.box { stroke: var(--accent-2); fill: rgba(34,211,238,0.05); }
+  .node text { fill: var(--text); font-size: 17px; font-weight: 650; }
+  .node text.sub { fill: var(--muted); font-size: 13.5px; font-weight: 500; }
+  .node text.head { font-size: 14px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+  .vault text.head { fill: var(--accent); } .paryon text.head { fill: var(--accent-2); }
+  .edge { fill: none; stroke: var(--muted); stroke-width: 2; marker-end: url(#arrow); stroke-dasharray: 1; stroke-dashoffset: 1; }
+  .edge.green { stroke: var(--accent); } .edge.amber { stroke: var(--warn); } .edge.dash { stroke-dasharray: 6 6; stroke-dashoffset: 0; opacity: 0; }
+  .elabel { fill: var(--muted); font-size: 13px; font-weight: 600; opacity: 0; }
+  .arch .node { opacity: 0; }
+  .slide.on .arch .node { animation: rise 0.7s var(--ease) forwards; }
+  .slide.on .arch .edge { animation: draw 1s var(--ease) forwards; }
+  .slide.on .arch .edge.dash, .slide.on .arch .elabel { animation: fade 0.8s var(--ease) forwards; }
+  @keyframes fade { to { opacity: 1; } }
+
+  /* transactions */
+  .tx { display: grid; grid-template-columns: 1fr 70px 1fr; gap: 0; align-items: stretch; margin-top: 8px; }
+  .col { display: grid; gap: 10px; align-content: start; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-radius: 14px; background: var(--surface); border: 1px solid var(--border); font-size: 17px; }
+  .row .ix { font-family: "DejaVu Sans Mono", monospace; font-size: 13px; color: var(--muted); width: 44px; flex: none; }
+  .row.v { border-color: rgba(52,211,153,0.6); background: rgba(52,211,153,0.08); }
+  .row.p { border-color: rgba(34,211,238,0.35); }
+  .row.k { border-style: dashed; border-color: rgba(251,191,36,0.6); }
+  .row .note { margin-left: auto; color: var(--muted); font-size: 13.5px; }
+  .row.v .note { color: var(--accent); }
+  .arrowcol { display: grid; place-items: center; }
+  .bigarrow { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #04140d; font-weight: 900; font-size: 22px; box-shadow: 0 0 40px -6px var(--accent); }
+  .colhead { font-size: 14px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+  .callouts { display: flex; gap: 14px; margin-top: 22px; }
+  .callout { flex: 1; font-size: 16px; padding: 14px 18px; }
+  .callout b { color: var(--accent); }
+  .slide.on .row { animation: rise 0.6s var(--ease) both; }
+  .slide.on .col .row:nth-child(2) { animation-delay: 0.1s; } .slide.on .col .row:nth-child(3) { animation-delay: 0.2s; } .slide.on .col .row:nth-child(4) { animation-delay: 0.3s; }
+  .slide.on .col .row:nth-child(5) { animation-delay: 0.4s; } .slide.on .col .row:nth-child(6) { animation-delay: 0.5s; } .slide.on .col .row:nth-child(7) { animation-delay: 0.6s; } .slide.on .col .row:nth-child(8) { animation-delay: 0.7s; }
+
+  /* code viewer */
+  .codewrap { display: grid; grid-template-columns: 330px 1fr; gap: 26px; height: 520px; }
+  .codeside h2 { font-size: 30px; }
+  .codeside .topic { font-size: 16px; padding: 6px 12px; border-radius: 12px; margin-bottom: 6px; color: var(--muted); border: 1px solid transparent; transition: all 0.4s var(--ease); }
+  .codeside .topic.on { color: var(--text); background: rgba(52,211,153,0.1); border-color: rgba(52,211,153,0.5); }
+  .code { position: relative; overflow: hidden; border-radius: 18px; background: #0a1017; border: 1px solid var(--border-strong); height: 500px; align-self: start; }
+  .code .bar { position: relative; z-index: 2; background: #0a1017; height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 14px; border-bottom: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+  .code .bar i { width: 11px; height: 11px; border-radius: 50%; background: #334; display: inline-block; }
+  .code .scroll { position: absolute; top: 38px; left: 0; right: 0; transition: transform 0.9s var(--ease); }
+  .code pre { margin: 0; padding: 10px 0; font: 13.6px/1.62 "DejaVu Sans Mono", monospace; }
+  .code .ln { display: block; padding: 0 16px 0 0; white-space: pre; transition: background 0.4s, opacity 0.4s; }
+  .code .ln .n { display: inline-block; width: 52px; text-align: right; padding-right: 16px; color: #3d4a5a; user-select: none; }
+  .code.focus .ln { opacity: 0.38; }
+  .code.focus .ln.hl { opacity: 1; background: rgba(52,211,153,0.12); box-shadow: inset 3px 0 0 var(--accent); }
+  .tok-k { color: #c792ea; } .tok-f { color: #82aaff; } .tok-s { color: #c3e88d; } .tok-c { color: #5c6b7d; font-style: italic; } .tok-n { color: #f78c6c; } .tok-r { color: #34d399; font-weight: 700; }
+
+  /* tests */
+  .tests { display: grid; grid-template-columns: 1.15fr 1fr; gap: 24px; height: 430px; }
+  .term { position: relative; overflow: hidden; border-radius: 18px; background: #05080c; border: 1px solid var(--border-strong); }
+  .term .bar { height: 36px; display: flex; align-items: center; padding: 0 14px; gap: 8px; color: var(--muted); font-size: 13px; border-bottom: 1px solid var(--border); }
+  .term .body { position: absolute; top: 36px; bottom: 0; left: 0; right: 0; padding: 12px 16px; font: 12.4px/1.6 "DejaVu Sans Mono", monospace; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-start; }
+  .term .body div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #b6c2d1; }
+  .term .body .ok { color: var(--accent); }
+  .term .body .sum { color: var(--text); font-weight: 700; }
+  .twice { display: grid; gap: 14px; align-content: start; }
+  .twice .card { font-size: 17px; }
+  .twice .card b { display: block; font-size: 19px; margin-bottom: 4px; }
+  .twice .big { font-size: 64px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
+
+  /* lists */
+  .list { display: grid; gap: 14px; margin-top: 10px; }
+  .list .item { display: grid; grid-template-columns: 46px 1fr; gap: 16px; align-items: start; font-size: 21px; padding: 16px 20px; }
+  .list .ic { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; font-weight: 800; font-size: 20px; background: rgba(52,211,153,0.12); color: var(--accent); }
+  .list .ic.w { background: rgba(251,191,36,0.12); color: var(--warn); }
+  .list .item span.muted { display: block; font-size: 17px; }
+
+  .txlist { display: grid; gap: 10px; margin-top: 6px; }
+  .txlist .row { font-size: 18px; padding: 13px 18px; }
+  .txlist .row .mono { font-size: 15px; color: var(--accent-2); margin-left: auto; }
+  .chip { font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; background: rgba(52,211,153,0.12); color: var(--accent); }
+  .chip.w { background: rgba(251,191,36,0.12); color: var(--warn); }
+
+  .pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 34px; width: 100%; }
+  .pillars .card { text-align: left; font-size: 17px; }
+  .pillars .card b { display: block; font-size: 21px; margin-bottom: 6px; color: var(--text); }
+</style>
+</head>
+<body>
+<div class="bg"><span></span><span></span><span></span></div>
+<div class="grid"></div>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="crash-grad" x1="0" x2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset="0.6" stop-color="#fbbf24"/><stop offset="1" stop-color="#fb7185"/></linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#8e9aab"/></marker>
+  </defs>
+</svg>
+
+<!-- ============ shared ============ -->
+<section class="slide" id="title-pitch">
+  <div class="title-wrap">
+    <div class="logo in"><svg width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="#04140d" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v5.5c0 4.6 3.1 8.4 7.5 9.5 4.4-1.1 7.5-4.9 7.5-9.5V6L12 3Z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></div>
+    <h1 class="in d1">Backstop</h1>
+    <p class="in d2 muted">A pre-funded rescue for <span class="grad" style="font-weight:700">ParyonUSD loans</span> on Bitcoin Cash</p>
+    <div class="tags in d3"><span class="pill">BCH BLAZE 2026</span><span class="pill">CashScript</span><span class="pill">CashTokens</span><span class="pill">Chipnet</span></div>
+  </div>
+</section>
+
+<section class="slide" id="title-tech">
+  <div class="title-wrap">
+    <div class="logo in"><svg width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="#04140d" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v5.5c0 4.6 3.1 8.4 7.5 9.5 4.4-1.1 7.5-4.9 7.5-9.5V6L12 3Z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></div>
+    <h1 class="in d1">Backstop <span class="grad">under the hood</span></h1>
+    <p class="in d2 muted">Technical walkthrough: the vault, the three transactions, every guarantee as a <code style="color:var(--accent)">require</code></p>
+    <div class="tags in d3"><span class="pill">contracts/Backstop.cash</span><span class="pill"><span class="testtotal">all</span> tests</span><span class="pill">Run on chipnet</span></div>
+  </div>
+</section>
+
+<!-- ============ pitch ============ -->
+<section class="slide" id="problem">
+  <div class="problem">
+    <div>
+      <div class="eyebrow in">The problem</div>
+      <div class="clock in d1">3:07<small>AM</small></div>
+      <div class="zzz in d2">The borrower is asleep.</div>
+      <div class="lost in d3">BCH falls. Her loan drops below <b>110%</b> collateral.<br>It is liquidated, and <b>all of her BCH collateral is gone.</b></div>
+    </div>
+    <div class="crash card in d1">
+      <svg viewBox="0 0 600 360">
+        <text x="10" y="24" fill="#8e9aab" font-size="15" font-weight="600">BCH price</text>
+        <line x1="10" x2="590" y1="250" y2="250" class="liq"/>
+        <text x="590" y="240" fill="#fb7185" font-size="14" font-weight="700" text-anchor="end">Liquidation line</text>
+        <path class="line" pathLength="1" d="M10 70 C 80 50, 120 90, 170 80 S 250 100, 290 130 S 360 160, 390 200 S 460 290, 520 300 L 590 330"/>
+        <g class="stamp" transform="translate(420 150)"><g transform="rotate(-8)"><rect x="-130" y="-34" width="260" height="62" rx="10"/><text y="9">LIQUIDATED</text></g></g>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="close">
+  <div class="center">
+    <div style="display:grid;justify-items:center;gap:16px">
+      <div class="logo in"><svg width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="#04140d" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v5.5c0 4.6 3.1 8.4 7.5 9.5 4.4-1.1 7.5-4.9 7.5-9.5V6L12 3Z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></div>
+      <h1 class="in d1" style="font-size:60px">Every guarantee is a <span class="grad">require</span>.</h1>
+      <div class="pillars">
+        <div class="card in d2"><b>Safe on chain</b><span class="muted">A keeper can only top up the borrower's own loan, within her limits.</span></div>
+        <div class="card in d3"><b>Bitcoin Cash native</b><span class="muted">CashScript, CashTokens, introspection, checkDataSig prices.</span></div>
+        <div class="card in d4"><b>No friction</b><span class="muted">One signature in, none during a rescue, one out. No server.</span></div>
+      </div>
+      <div class="pill in d5" style="margin-top:18px">github.com/Emediong-Etuk/Backstop</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ technical ============ -->
+<section class="slide" id="pieces">
+  <div class="eyebrow in">The pieces</div>
+  <div class="arch">
+    <svg viewBox="0 0 1140 520">
+      <g class="node" style="animation-delay:0.1s"><rect x="10" y="190" width="200" height="110"/><text x="30" y="232">Borrower wallet</text><text x="30" y="258" class="sub">Cashonize, WizardConnect</text><text x="30" y="280" class="sub">signs setup + withdraw</text></g>
+      <g class="node vault" style="animation-delay:0.5s"><rect class="box" x="300" y="120" width="290" height="250"/><text x="322" y="152" class="head">Backstop vault</text>
+        <rect x="322" y="170" width="246" height="80"/><text x="340" y="203">Key output</text><text x="340" y="228" class="sub">1000 sats + minting loan key</text>
+        <rect x="322" y="266" width="246" height="80"/><text x="340" y="299">Reserve output</text><text x="340" y="324" class="sub">plain BCH, shrinks per rescue</text></g>
+      <g class="node paryon" style="animation-delay:0.9s"><rect class="box" x="700" y="40" width="300" height="400"/><text x="722" y="72" class="head">Paryon, unmodified</text>
+        <rect x="722" y="92" width="256" height="84"/><text x="740" y="126">Price contract</text><text x="740" y="151" class="sub">oracle-signed, checkDataSig</text>
+        <rect x="722" y="192" width="256" height="84"/><text x="740" y="226">Loan + sidecar</text><text x="740" y="251" class="sub">collateral, 27-byte state</text>
+        <rect x="722" y="292" width="256" height="84"/><text x="740" y="326">manage function</text><text x="740" y="351" class="sub">add collateral (repay 0)</text></g>
+      <g class="node" style="animation-delay:1.3s"><rect x="1040" y="70" width="96" height="84"/><text x="1056" y="108">Oracle</text><text x="1056" y="132" class="sub">prices</text></g>
+      <g class="node" style="animation-delay:1.5s"><rect x="300" y="420" width="290" height="90"/><text x="322" y="458">Keeper (anyone)</text><text x="322" y="483" class="sub">no keys, no funds, stateless</text></g>
+      <path class="edge green" pathLength="1" style="animation-delay:1.8s" d="M210 230 C 250 230, 260 210, 300 210"/>
+      <text class="elabel" style="animation-delay:2s" x="214" y="200">setup: 1 sig</text>
+      <path class="edge green" pathLength="1" style="animation-delay:2.1s" d="M300 300 C 260 300, 250 280, 212 280"/>
+      <text class="elabel" style="animation-delay:2.3s" x="214" y="320">withdraw: 1 sig</text>
+      <path class="edge amber" pathLength="1" style="animation-delay:2.4s" d="M590 306 C 650 306, 660 234, 720 234"/>
+      <text class="elabel" style="animation-delay:2.6s" x="600" y="262">top-up</text>
+      <path class="edge" pathLength="1" style="animation-delay:2.6s" d="M1088 154 C 1088 170, 1040 134, 980 134"/>
+      <text class="elabel" style="animation-delay:2.8s" x="1010" y="176">updatePrice</text>
+      <path class="edge dash amber" style="animation-delay:3s" d="M590 466 C 650 466, 680 330, 720 330"/>
+      <text class="elabel" style="animation-delay:3.1s" x="610" y="440">builds + broadcasts rescue</text>
+    </svg>
+  </div>
+</section>
+
+<section class="slide" id="setup-tx">
+  <div class="eyebrow in">Transaction 1</div><h2 class="in d1">Setup: one wallet signature</h2>
+  <div class="tx">
+    <div class="col"><div class="colhead">Inputs</div>
+      <div class="row"><span class="ix">in</span>Wallet: loan key<span class="note">minting NFT</span></div>
+      <div class="row"><span class="ix">in</span>Wallet: BCH coins</div>
+    </div>
+    <div class="arrowcol"><div class="bigarrow">→</div></div>
+    <div class="col"><div class="colhead">Outputs</div>
+      <div class="row v"><span class="ix">out 0</span>Vault key output<span class="note">1000 sats + key</span></div>
+      <div class="row v"><span class="ix">out 1</span>Vault reserve<span class="note">the reserve</span></div>
+      <div class="row p"><span class="ix">out 2</span>OP_RETURN "BKSP"<span class="note">every vault parameter</span></div>
+      <div class="row"><span class="ix">out 3</span>Change to the wallet</div>
+    </div>
+  </div>
+  <div class="callouts"><div class="card callout in d4">The OP_RETURN holds every constructor parameter, so <b>anyone can rebuild the vault's address and rules from chain data alone</b>. The keeper and the web app need no database.</div></div>
+</section>
+
+<section class="slide" id="rescue-tx">
+  <div class="eyebrow in">Transaction 2</div><h2 class="in d1">Rescue: anyone, no signatures</h2>
+  <div class="tx">
+    <div class="col"><div class="colhead">Inputs</div>
+      <div class="row p"><span class="ix">in 0</span>Paryon price contract</div>
+      <div class="row p"><span class="ix">in 1</span>Paryon loan</div>
+      <div class="row p"><span class="ix">in 2</span>Paryon loan sidecar</div>
+      <div class="row p"><span class="ix">in 3</span>Paryon manage function</div>
+      <div class="row v"><span class="ix">in 4</span>Vault key<span class="note">rescue()</span></div>
+      <div class="row v"><span class="ix">in 5</span>Vault reserve<span class="note">rescue()</span></div>
+    </div>
+    <div class="arrowcol"><div class="bigarrow">→</div></div>
+    <div class="col"><div class="colhead">Outputs</div>
+      <div class="row p"><span class="ix">out 0</span>Price contract<span class="note">unchanged</span></div>
+      <div class="row p"><span class="ix">out 1</span>Loan<span class="note">same state, + top-up</span></div>
+      <div class="row p"><span class="ix">out 2</span>Sidecar<span class="note">unchanged</span></div>
+      <div class="row p"><span class="ix">out 3</span>manage function<span class="note">unchanged</span></div>
+      <div class="row v"><span class="ix">out 4</span>Vault key<span class="note">unchanged</span></div>
+      <div class="row v"><span class="ix">out 5</span>Vault reserve<span class="note">≥ in5 − top-up − cap</span></div>
+      <div class="row k"><span class="ix">out 6</span>Keeper reward<span class="note">optional, BCH only</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="code-rescue">
+  <div class="codewrap">
+    <div class="codeside">
+      <div class="eyebrow in">contracts/Backstop.cash</div>
+      <h2 class="in d1">rescue(): every rule a require</h2>
+      <div class="topics in d2"></div>
+    </div>
+    <div class="code in d1" data-from="49" data-to="166"><div class="bar"><i></i><i></i><i></i><span style="margin-left:8px">Backstop.cash</span></div><div class="scroll"><pre></pre></div></div>
+  </div>
+</section>
+
+<section class="slide" id="code-withdraw">
+  <div class="codewrap">
+    <div class="codeside">
+      <div class="eyebrow in">Transaction 3</div>
+      <h2 class="in d1">Withdraw: only the owner</h2>
+      <div class="topics in d2"></div>
+    </div>
+    <div class="code in d1" data-from="169" data-to="205"><div class="bar"><i></i><i></i><i></i><span style="margin-left:8px">Backstop.cash</span></div><div class="scroll"><pre></pre></div></div>
+  </div>
+</section>
+
+<section class="slide" id="tests">
+  <div class="eyebrow in">Tests</div><h2 class="in d1">Every attack, tested twice</h2>
+  <div class="tests">
+    <div class="term in d1"><div class="bar"><i style="width:11px;height:11px;border-radius:50%;background:#334;display:inline-block"></i><span style="margin-left:6px">npm test</span></div><div class="body"></div></div>
+    <div class="twice">
+      <div class="card in d2"><b>1 · Against Paryon's real contracts</b><span class="muted">The attack transaction must be rejected.</span></div>
+      <div class="card in d3"><b>2 · With Paryon's checks removed</b><span class="muted">Permissive stand-ins replace Paryon. The attack must still fail, on Backstop's own require, matched by its message.</span></div>
+      <div class="card in d4" style="display:flex;align-items:center;gap:18px"><span class="big grad testcount">0</span><span class="muted">tests passing, including the full demo on an in-memory node that enforces BIP68, standardness and fees like BCHN</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="chipnet">
+  <div class="eyebrow in">On chipnet, 12–13 November 2026</div><h2 class="in d1">It ran for real</h2>
+  <div class="txlist">
+    <div class="row in d1"><span class="chip">deploy</span>Paryon's unmodified contracts, one demo loan<span class="mono">b6bdb31f8622…</span></div>
+    <div class="row in d2"><span class="chip">setup</span>Loan key + reserve into the vault, signed in Cashonize<span class="mono">ff1affd37f70…</span></div>
+    <div class="row in d3"><span class="chip w">price</span>Demo oracle: $30,000 → $26,500, loan at 115%<span class="mono">cb31f9f0a064…</span></div>
+    <div class="row v in d4"><span class="chip">rescue</span>Keeper, no signatures: loan back to 149.8%<span class="mono">24aa5b20a23b…</span></div>
+    <div class="row in d5"><span class="chip">withdraw</span>Key + reserve back, ownerWithdraw in Cashonize<span class="mono">962af902b19a…</span></div>
+  </div>
+  <p class="muted in d6" style="margin-top:16px;font-size:16px">Explorer links in docs/ARCHITECTURE.md · chipnet.imaginary.cash</p>
+</section>
+
+<section class="slide" id="limits">
+  <div class="eyebrow in">Honest limits</div><h2 class="in d1">Known limitations</h2>
+  <div class="list">
+    <div class="item card in d1"><div class="ic w">1</div><div>Demo oracle key on chipnet<span class="muted">Real General Protocols message format; mainnet would use General Protocols' key.</span></div></div>
+    <div class="item card in d2"><div class="ic w">2</div><div>A stale price means no rescue<span class="muted">…but no liquidation either: Paryon liquidates on the same price.</span></div></div>
+    <div class="item card in d3"><div class="ic w">3</div><div>A crash faster than any keeper, or within the cooldown<span class="muted">The stability pool can still liquidate first. Backstop reduces the risk, it does not remove it.</span></div></div>
+    <div class="item card in d4"><div class="ic w">4</div><div>Redemptions are out of scope · one loan per vault</div></div>
+  </div>
+</section>
+
+<script>
+  // Contract source, embedded so the slides work offline. Filled in by record.cjs before loading.
+  const SOURCE = window.__BACKSTOP_SOURCE || '';
+  const TESTS = window.__BACKSTOP_TESTS || [];
+
+  function highlight(line) {
+    const esc = line.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    if (/^\s*\/\//.test(line)) return `<span class="tok-c">${esc}</span>`;
+    return esc
+      .replace(/(".*?")/g, '<span class="tok-s">$1</span>')
+      .replace(/\b(require)\b/g, '<span class="tok-r">$1</span>')
+      .replace(/\b(function|if|else|bytes|bytes20|bytes25|bytes32|int|bool|pubkey|sig|contract|new)\b/g, '<span class="tok-k">$1</span>')
+      .replace(/\b(tx|this)\b/g, '<span class="tok-f">$1</span>')
+      .replace(/\b(\d[\d_]*)\b/g, '<span class="tok-n">$1</span>');
+  }
+  function renderCode(slide) {
+    const box = slide.querySelector('.code');
+    const from = +box.dataset.from, to = +box.dataset.to;
+    const lines = SOURCE.split('\n');
+    box.querySelector('pre').innerHTML = lines.slice(from - 1, to)
+      .map((l, i) => `<span class="ln" data-n="${from + i}"><span class="n">${from + i}</span>${highlight(l)}</span>`).join('');
+  }
+  // Highlight lines a..b in the visible code panel, scroll them to the middle, and mark the topic.
+  window.focusLines = (a, b, topicIndex) => {
+    const slide = document.querySelector('.slide.on');
+    const box = slide.querySelector('.code');
+    box.classList.add('focus');
+    box.querySelectorAll('.ln').forEach((el) => el.classList.toggle('hl', +el.dataset.n >= a && +el.dataset.n <= b));
+    const first = box.querySelector(`.ln[data-n="${a}"]`), last = box.querySelector(`.ln[data-n="${b}"]`);
+    if (first && last) {
+      const mid = (first.offsetTop + last.offsetTop + last.offsetHeight) / 2;
+      const view = box.clientHeight - 38;
+      const max = box.querySelector('pre').offsetHeight - view;
+      box.querySelector('.scroll').style.transform = `translateY(${-Math.max(0, Math.min(max, mid - view / 2))}px)`;
+    }
+    slide.querySelectorAll('.topic').forEach((t, i) => t.classList.toggle('on', i === topicIndex));
+  };
+  window.setTopics = (topics) => {
+    const slide = document.querySelector('.slide.on');
+    slide.querySelector('.topics').innerHTML = topics.map((t) => `<div class="topic">${t}</div>`).join('');
+  };
+  // Replay the captured test output, then count up to the total.
+  window.playTests = async (ms) => {
+    const body = document.querySelector('#tests .term .body');
+    body.innerHTML = '';
+    const lines = TESTS;
+    const step = ms / (lines.length + 4);
+    for (const line of lines) {
+      const div = document.createElement('div');
+      div.textContent = line.replace(/ \d+ms$/, '');
+      if (line.startsWith('✓')) div.className = 'ok';
+      body.appendChild(div);
+      while (body.children.length > 18) body.removeChild(body.firstChild);
+      await new Promise((r) => setTimeout(r, step));
+    }
+    for (const s of ['', ...(window.__BACKSTOP_SUMMARY || [])]) {
+      const div = document.createElement('div'); div.textContent = s; div.className = 'sum'; body.appendChild(div);
+      while (body.children.length > 18) body.removeChild(body.firstChild);
+    }
+  };
+  window.countTo = (n, ms) => {
+    const el = document.querySelector('#tests .testcount');
+    const start = performance.now();
+    const tick = (now) => { const t = Math.min(1, (now - start) / ms); el.textContent = Math.round(n * (1 - Math.pow(1 - t, 3))); if (t < 1) requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+  };
+  // Test totals come from the replayed test run, never typed in.
+  addEventListener('DOMContentLoaded', () => document.querySelectorAll('.testtotal').forEach((el) => { el.textContent = String(TESTS.length || 'all'); }));
+  window.show = (id) => {
+    document.querySelectorAll('.slide').forEach((s) => s.classList.toggle('on', s.id === id));
+    const slide = document.getElementById(id);
+    if (slide.querySelector('.code')) renderCode(slide);
+  };
+</script>
+</body>
+</html>

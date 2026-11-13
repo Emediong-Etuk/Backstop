@@ -96,6 +96,29 @@ describe('Withdrawing by spending a wallet coin (for wallets that only sign thei
     expect(world.build(parts)).toFailRequireWith(/Withdraw may have at most 3 outputs|Withdraw must pay the vault owner/);
   });
 
+  it("the loan key cannot be sent anywhere but the owner's address", () => {
+    const { world, parts } = setUp();
+    parts.outputs[0].to = Buffer.from(stranger.lockingBytecode, 'hex');
+    expect(world.build(parts)).toFailRequireWith(/Withdraw must pay the vault owner/);
+  });
+
+  it('a withdraw cannot have more than three outputs, even all paying the owner', () => {
+    const { world, parts } = setUp();
+    parts.outputs[1].amount -= 2_000n;
+    const to = Buffer.from(owner.lockingBytecode, 'hex');
+    parts.outputs.push({ to, amount: 1_000n }, { to, amount: 1_000n });
+    expect(world.build(parts)).toFailRequireWith(/Withdraw may have at most 3 outputs/);
+  });
+
+  it('a withdraw cannot bring inputs beyond the ones its fee check counts', () => {
+    const { world, parts } = setUp();
+    // Inputs past the fourth are not counted in the fee check, so they could hide a large miner fee.
+    for (const vout of [1, 2]) {
+      parts.inputs.push({ utxo: world.addUtxo(owner.lockingBytecode, { vout, satoshis: 5_000n }), unlocker: owner.signer.unlockP2PKH() });
+    }
+    expect(world.build(parts)).toFailRequireWith(/Withdraw may have at most 4 inputs/);
+  });
+
   it('a withdraw cannot burn the reserve as miner fee', () => {
     const { world, parts } = setUp();
     parts.outputs[1].amount = 10_000n; // the rest would go to miners

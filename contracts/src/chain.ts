@@ -122,6 +122,55 @@ export async function history(provider: NetworkProvider, lockingBytecode: string
   return entries.map((e) => ({ txid: e.tx_hash, height: e.height }));
 }
 
+/** Chipnet Electrum servers known to the demo tools, for comparing which ones are in sync. */
+export const CHIPNET_SERVERS = ['chipnet.bch.ninja', 'chipnet.imaginary.cash'];
+
+/**
+ * How long ago the server's newest block was mined, in minutes. A server whose node has fallen
+ * off the network keeps answering, but its newest block gets older and older, and transactions
+ * sent through it never confirm.
+ */
+export async function tipAgeMinutes(provider: NetworkProvider, now = Date.now()): Promise<number | undefined> {
+  const time = await blockTime(provider, await provider.getBlockHeight());
+  return time === undefined ? undefined : Math.floor((now / 1000 - time) / 60);
+}
+
+/** A warning when the server looks stuck, or undefined. Chipnet blocks are irregular, so allow two hours. */
+export async function staleServerWarning(provider: NetworkProvider, server: string, now = Date.now()): Promise<string | undefined> {
+  const minutes = await tipAgeMinutes(provider, now).catch(() => undefined);
+  if (minutes === undefined || minutes < 120) return undefined;
+  return `WARNING: the newest block on ${server} is ${(minutes / 60).toFixed(1)} hours old. The server may have fallen off the network, `
+    + 'so transactions sent through it would never confirm. Compare servers with "npm run demo:servers".';
+}
+
+/**
+ * A warning when another server is several blocks ahead, or undefined. A server on its own branch
+ * of the chain can still get the odd block, so a fresh newest block alone does not prove it is in
+ * step with everyone else; comparing heights does.
+ */
+export function behindWarning(server: string, height: number, others: Array<{ server: string; height: number }>): string | undefined {
+  const ahead = others.filter((o) => o.server !== server && o.height - height >= 3).sort((a, b) => b.height - a.height)[0];
+  if (!ahead) return undefined;
+  return `WARNING: ${server} is at block ${height}, but ${ahead.server} is at block ${ahead.height}. ${server} is behind or on its own branch `
+    + 'of the chain, so transactions sent through it may never confirm. Compare servers with "npm run demo:servers".';
+}
+
+/** Heights of the other known chipnet servers that answer within a few seconds. */
+export async function otherChipnetHeights(server: string, connect: (host: string) => NetworkProvider & { disconnect?: () => Promise<unknown> }): Promise<Array<{ server: string; height: number }>> {
+  const results = await Promise.all(CHIPNET_SERVERS.filter((s) => s !== server).map(async (host) => {
+    const provider = connect(host);
+    try {
+      const height = await Promise.race([provider.getBlockHeight(), new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))]);
+      return { server: host, height };
+    } catch {
+      return undefined;
+    } finally {
+      await provider.disconnect?.().catch(() => {});
+    }
+  }));
+  return results.filter((r): r is { server: string; height: number } => r !== undefined);
+}
+
 /** Unix time of a block, read from its 80-byte header. */
 export async function blockTime(provider: NetworkProvider, height: number): Promise<number | undefined> {
   if (height <= 0) return undefined;
@@ -161,7 +210,10 @@ export async function findOwnedVaults(provider: NetworkProvider, ownerPkh: strin
       try { vaults.push(await loadVault(provider, txid)); } catch { /* not a valid setup */ }
     }
   }
-  return vaults;
+  // Protecting the same loan again with the same rules gives the same vault address. Keep one
+  // entry per address (the latest setup); its history covers every setup at that address.
+  const byAddress = new Map(vaults.map((v) => [v.contract.lockingBytecode, v]));
+  return [...byAddress.values()];
 }
 
 export type VaultEvent =
@@ -183,7 +235,9 @@ export async function vaultHistory(provider: NetworkProvider, vault: Vault): Pro
   for (const { txid, height } of await history(provider, vaultBytecode)) {
     const tx = await getTx(txid);
     const pays = (i: number) => tx.outputs[i] && binToHex(tx.outputs[i].lockingBytecode) === vaultBytecode;
-    if (txid === vault.setupTxid) {
+    const isSetup = txid === vault.setupTxid
+      || (pays(0) && pays(1) && tx.outputs.some((o) => decodeSetupOutput(binToHex(o.lockingBytecode)) !== undefined));
+    if (isSetup) {
       events.push({ kind: 'setup', txid, height, reserveSats: tx.outputs[1].valueSatoshis });
     } else if (tx.inputs.length === 6 && pays(4) && pays(5)) {
       const prevLoan = await getTx(binToHex(tx.inputs[1].outpointTransactionHash));
@@ -196,5 +250,9 @@ export async function vaultHistory(provider: NetworkProvider, vault: Vault): Pro
       events.push({ kind: 'withdraw', txid, height });
     }
   }
-  return events;
+  // Servers list a block's transactions in block order, which on BCH is by txid (CTOR), not by
+  // dependency: a setup and a withdraw mined in the same block can come back withdraw first.
+  const rank = { setup: 0, rescue: 1, withdraw: 2 } as const;
+  const when = (e: VaultEvent) => (e.height > 0 ? e.height : Number.MAX_SAFE_INTEGER);
+  return events.sort((a, b) => when(a) - when(b) || rank[a.kind] - rank[b.kind]);
 }

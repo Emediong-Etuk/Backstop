@@ -1,5 +1,5 @@
 // Demo keys. Read from .env (never committed). Chipnet only.
-import { SignatureTemplate, type NetworkProvider, type SpendableUtxo } from 'cashscript';
+import { SignatureTemplate, TransactionBuilder, type NetworkProvider, type SpendableUtxo } from 'cashscript';
 import {
   binToHex, decodePrivateKeyWif, encodePrivateKeyWif, generatePrivateKey, hash160, lockingBytecodeToCashAddress, secp256k1,
 } from '@bitauth/libauth';
@@ -68,7 +68,21 @@ export async function pickCoins(provider: NetworkProvider, wallet: DemoWallet, s
     total += coin.satoshis;
   }
   if (total < sats) {
-    throw new Error(`${label} wallet ${wallet.address} has ${total} sats, needs ${sats}. Get chipnet BCH from https://chipnet.bch.ninja/`);
+    throw new Error(`${label} wallet ${wallet.address} has ${total} sats, needs ${sats}. Send it chipnet BCH from a faucet on the same chain as your server ("npm run demo:servers" checks the servers)`);
   }
   return picked;
+}
+
+/**
+ * Sends BCH from a demo wallet to any address, change back to the wallet. For moving the
+ * funder's spare test BCH to the borrower's own wallet when a faucet is short.
+ */
+export async function sendBch(args: { provider: NetworkProvider; from: DemoWallet; to: string; sats: bigint; feeRate?: number }): Promise<string> {
+  const { provider, from, to, sats, feeRate = 1.0 } = args;
+  const coins = await pickCoins(provider, from, sats + 2_000n, 'Funder');
+  const builder = new TransactionBuilder({ provider });
+  for (const coin of coins) builder.addInput(coin, from.signer.unlockP2PKH());
+  builder.addOutput({ to, amount: sats });
+  builder.addBchChangeOutputIfNeeded({ to: from.address, feeRate });
+  return (await builder.send()).txid;
 }

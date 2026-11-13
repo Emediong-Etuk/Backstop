@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Compiles Backstop.cash and runs the whole suite against Paryon's real contracts.
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run web:build
+      # The borrower flow in a real browser (desktop and phone), including the attacks.
+      - run: npm install --no-save playwright@1.63.0 && npx playwright install --with-deps chromium
+      - run: node web/scripts/e2e-preview.cjs
