@@ -1,26 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#34d399"/>
-      <stop offset="1" stop-color="#22d3ee"/>
-    </linearGradient>
-    <radialGradient id="shine" cx="0.25" cy="0.18" r="0.75">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.38"/>
-      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="shield" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffffff"/>
-      <stop offset="1" stop-color="#e6fff6"/>
-    </linearGradient>
-    <filter id="drop" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#04140d" flood-opacity="0.35"/>
-    </filter>
+    <radialGradient id="bgA" cx="0.2" cy="0.12" r="0.9"><stop offset="0" stop-color="#123326"/><stop offset="0.55" stop-color="#0a1218"/><stop offset="1" stop-color="#06090d"/></radialGradient>
+    <radialGradient id="bgB" cx="0.85" cy="0.9" r="0.6"><stop offset="0" stop-color="#0e3a46" stop-opacity="0.9"/><stop offset="1" stop-color="#0e3a46" stop-opacity="0"/></radialGradient>
+    <linearGradient id="front" x1="0.15" y1="0.05" x2="0.85" y2="1"><stop offset="0" stop-color="#5cf2b4"/><stop offset="0.55" stop-color="#22d3ee"/><stop offset="1" stop-color="#3b82f6"/></linearGradient>
+    <linearGradient id="back" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#34d399" stop-opacity="0.85"/><stop offset="1" stop-color="#a78bfa" stop-opacity="0.6"/></linearGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.35"/><stop offset="0.5" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="22"/></filter>
+    <clipPath id="frontClip"><path d="M236 96 L364 142 V238 C364 322 312 386 236 414 C160 386 108 322 108 238 V142 Z"/></clipPath>
   </defs>
-  <rect width="512" height="512" rx="116" fill="url(#tile)"/>
-  <rect width="512" height="512" rx="116" fill="url(#shine)"/>
-  <!-- the shield -->
-  <path filter="url(#drop)" fill="url(#shield)"
-    d="M256 92 L384 140 V236 C384 318 330 388 256 416 C182 388 128 318 128 236 V140 Z"/>
-  <!-- the check -->
-  <path d="M196 258 L240 302 L320 214" fill="none" stroke="#0b5c43" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect width="512" height="512" fill="url(#bgA)"/>
+  <rect width="512" height="512" fill="url(#bgB)"/>
+  <rect x="1.5" y="1.5" width="509" height="509" fill="none" stroke="#fff" stroke-opacity="0.09" stroke-width="3"/>
+  <!-- the backstop: a second layer behind -->
+  <path d="M286 118 L410 162 V254 C410 334 360 396 286 424 C212 396 162 334 162 254 V162 Z" fill="none" stroke="url(#back)" stroke-width="14" stroke-linejoin="round"/>
+  <!-- glow -->
+  <path d="M236 96 L364 142 V238 C364 322 312 386 236 414 C160 386 108 322 108 238 V142 Z" fill="#22d3ee" opacity="0.45" filter="url(#glow)"/>
+  <!-- the front shield -->
+  <path d="M236 96 L364 142 V238 C364 322 312 386 236 414 C160 386 108 322 108 238 V142 Z" fill="url(#front)"/>
+  <rect x="100" y="90" width="270" height="170" fill="url(#gloss)" clip-path="url(#frontClip)"/>
+  <!-- rescue: an upward chevron -->
+  <path d="M174 286 L236 226 L298 286" fill="none" stroke="#04140d" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M190 210 L236 166 L282 210" fill="none" stroke="#04140d" stroke-opacity="0.45" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

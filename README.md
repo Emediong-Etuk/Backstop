@@ -1,3 +1,5 @@
+<img src="docs/images/logo-256.png" width="88" alt="Backstop logo">
+
 # Backstop
 
 [![CI](https://github.com/Emediong-Etuk/Backstop/actions/workflows/ci.yml/badge.svg)](https://github.com/Emediong-Etuk/Backstop/actions/workflows/ci.yml)
