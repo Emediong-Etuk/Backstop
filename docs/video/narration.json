@@ -64,7 +64,7 @@
     },
     {
       "id": "t7-tests",
-      "text": "Each rescue attack is tested twice: against Paryon's real compiled contracts, and with Paryon's checks replaced by permissive stand-ins, where it must fail on Backstop's own require, matched by its message. So no guarantee depends on Paryon catching the same mistake. The suite runs one hundred and sixty-two tests, including the full demo on an in-memory node that enforces relative timelocks, standardness and fees the way BCHN does."
+      "text": "Each rescue attack is tested twice: against Paryon's real compiled contracts, and with Paryon's checks replaced by permissive stand-ins, where it must fail on Backstop's own require, matched by its message. So no guarantee depends on Paryon catching the same mistake. The suite runs one hundred and sixty-four tests, including the full demo on an in-memory node that enforces relative timelocks, standardness and fees the way BCHN does."
     },
     {
       "id": "t8-chipnet",

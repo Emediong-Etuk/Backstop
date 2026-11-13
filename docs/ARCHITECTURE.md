@@ -107,7 +107,7 @@ Each rescue test runs twice:
 - against Paryon's real compiled contracts, where the transaction must fail;
 - with Paryon's checks replaced by permissive stand-ins (`test/fixtures/PermissiveStandIn.cash`), where it must fail on Backstop's own `require`, matched by its message.
 
-So none of these depends on Paryon catching the same mistake. Deleting a `require` turns its tests red; I checked this for four of them in Phase 1.
+So none of these depends on Paryon catching the same mistake. A mutation test ([`MUTATION.md`](MUTATION.md), `node test/mutation.mjs`) switches off each of the 55 `require`s in turn and runs the tests: **54 are caught**, each by a named test. The 55th (line 54) checks the same equality as line 66 from the other vault input, so with it off line 66 still refuses everything; the report explains it.
 
 | A rescue cannot… | Backstop.cash | Test (`test/rescue.test.ts` unless noted) |
 |---|---|---|
