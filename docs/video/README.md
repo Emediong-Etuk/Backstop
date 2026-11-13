@@ -4,10 +4,10 @@ Two videos, recorded from the real web app and real chain data:
 
 | Video | Length | What it shows |
 |---|---|---|
-| `backstop-pitch.mp4` | about 2:10 | The borrower and the 3am liquidation; the app's local preview: setup with one signature, the price crash, a keeper's rescue landing, withdraw; the real rescue on the chipnet explorer |
-| `backstop-technical-walkthrough.mp4` | about 4:10 | The vault, loan, oracle and keeper; the setup and rescue transactions; `Backstop.cash` walked through `require` by `require`; withdraw; the tests; the chipnet transactions; known limitations |
+| [`media/backstop-pitch.mp4`](media/backstop-pitch.mp4) | 1:59 | The borrower and the 3am liquidation; the app's local preview: setup with one signature, an attack refused, the price crash, a keeper's rescue landing, withdraw; the real rescue on the chipnet explorer |
+| [`media/backstop-technical-walkthrough.mp4`](media/backstop-technical-walkthrough.mp4) | 4:15 | The vault, loan, oracle and keeper; the setup and rescue transactions; `Backstop.cash` walked through `require` by `require`; withdraw; the tests and the mutation result; the chipnet transactions; known limitations |
 
-Both are 1920×1080, with a voice-over and captions burned in. The app scenes run in the **local preview** (a test chain inside the page, labelled on screen); the chipnet proof is the real rescue transaction on `chipnet.imaginary.cash`.
+Both are 1920×1080, with a voice-over and captions burned in; the `.srt` files next to them hold the caption timings. The app scenes run in the **local preview** (a test chain inside the page, labelled on screen); the chipnet proof is the real rescue transaction on `chipnet.imaginary.cash`.
 
 ## The voice
 
