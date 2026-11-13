@@ -145,7 +145,7 @@ export default function Home() {
         )}
         {wallet && position && !activeVault && position.loans[0] && (() => {
           const loan = position.loans[Math.min(loanIndex, position.loans.length - 1)];
-          return <SetupScreen key={loan.loanKeyCategory} loan={loan} priceCents={position.priceCents} walletBchSats={position.walletBchSats} onProtect={protect} />;
+          return <SetupScreen key={loan.loanKeyCategory} loan={loan} priceCents={position.priceCents} walletBchSats={position.walletBchSats} onProtect={protect} defaultCooldownBlocks={chain?.kind === 'preview' ? 1n : undefined} />;
         })()}
         {wallet && position && !activeVault && !position.loans[0] && (
           <div className="card empty-state">

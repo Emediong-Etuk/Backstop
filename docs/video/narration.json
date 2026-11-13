@@ -1,23 +1,78 @@
 {
   "pitch": [
-    { "id": "p1-title", "text": "Meet a ParyonUSD borrower. She locked BCH and borrowed dollars against it." },
-    { "id": "p2-problem", "text": "If BCH falls until her loan drops below one hundred and ten percent collateral, it is liquidated, and she loses all of that BCH. Prices crash at three a.m. Today her only defence is to be awake, watching, with spare BCH ready to add by hand." },
-    { "id": "p3-idea", "text": "Backstop is a safety net. She sets aside a BCH reserve, once. If her loan nears liquidation, anyone, a keeper bot or a stranger, can move part of that reserve into her loan. She signs nothing, and the contract makes sure that is all they can do." },
-    { "id": "p4-setup", "text": "Setup is one signature. She picks a reserve and sees what it buys her: her loan can absorb a much deeper fall. A rescue starts below the level she chooses and lifts the loan back to one hundred and fifty percent, with fees capped." },
-    { "id": "p5-rescue", "text": "Now BCH crashes. Her loan falls to one hundred and fifteen percent. A keeper with no keys and no money sends the rescue. The reserve flows into her loan, and it is back near one hundred and fifty percent. She was asleep." },
-    { "id": "p6-withdraw", "text": "And she can always leave. One signature returns her loan key and her reserve. Nobody else can take them." },
-    { "id": "p7-chipnet", "text": "This is not a mock-up. The same sequence ran on chipnet: the setup signed in Cashonize, the price drop, and the keeper's rescue, accepted by a real node next to Paryon's unmodified contracts." },
-    { "id": "p8-close", "text": "Every guarantee is enforced on chain by Bitcoin Cash itself. No server, no database, no account. Backstop." }
+    {
+      "id": "p1-title",
+      "text": "Meet a ParyonUSD borrower. She locked BCH and borrowed dollars against it."
+    },
+    {
+      "id": "p2-problem",
+      "text": "If her loan drops below one hundred and ten percent collateral, it is liquidated, and she loses all of that BCH. Prices crash at three a.m. Today her only defence is to be awake, with spare BCH ready to add by hand."
+    },
+    {
+      "id": "p3-idea",
+      "text": "Backstop is a safety net. She sets aside a BCH reserve, once. If her loan nears liquidation, anyone can move part of that reserve into her loan. She signs nothing, and the contract makes sure that is all they can do."
+    },
+    {
+      "id": "p4-setup",
+      "text": "Setup is one signature. She picks a reserve and sees what it buys her: her loan can absorb a much deeper fall. A rescue starts below the level she chooses and lifts the loan back to one hundred and fifty percent."
+    },
+    {
+      "id": "p4b-attack",
+      "text": "Could a keeper cheat? This one tries to copy her loan key. The contract refuses, and names the rule. Paryon's own contracts would have let it through."
+    },
+    {
+      "id": "p5-rescue",
+      "text": "Now BCH crashes. Her loan falls to one hundred and fifteen percent. A keeper with no keys and no money sends the rescue. The reserve flows into her loan, and it is back near one hundred and fifty percent. She was asleep."
+    },
+    {
+      "id": "p6-withdraw",
+      "text": "And she can always leave. One signature returns her loan key and her reserve. Nobody else can take them."
+    },
+    {
+      "id": "p7-chipnet",
+      "text": "And this is not a mock-up: the same rescue ran on chipnet, accepted by a real node next to Paryon's unmodified contracts."
+    },
+    {
+      "id": "p8-close",
+      "text": "Every guarantee is enforced on chain by Bitcoin Cash itself. No server, no database, no account. Backstop."
+    }
   ],
   "technical": [
-    { "id": "t1-title", "text": "This is the technical walkthrough of Backstop: a CashScript vault that pre-funds a rescue for a ParyonUSD loan." },
-    { "id": "t2-pieces", "text": "There are four pieces. The borrower's wallet. The vault, which is two outputs at one contract address: a key output holding Paryon's minting loan key, and a reserve output holding plain BCH. They are separate because Paryon's manage function requires the loan key to come back with exactly the value it went in with. Then Paryon's own contracts: the price contract, the loan with its sidecar, and the manage function. And the keeper: a stateless process with no keys and no funds." },
-    { "id": "t3-setup", "text": "Setup is one wallet signature. The loan key and the reserve move into the vault, and an OP_RETURN records every vault parameter. So anyone can rebuild the vault's address and rules from chain data alone. The keeper and the web app need no database." },
-    { "id": "t4-rescue", "text": "The rescue is Paryon's own add-collateral transaction, manage with no repayment, with the vault at inputs four and five. Paryon fixes inputs and outputs zero to four and leaves index five onward free, which is where the reserve and an optional keeper reward go. Nobody signs. The price comes from Paryon's price contract at input zero, which only accepts oracle-signed messages, verified with check data sig, with an increasing sequence number, so an old low price cannot be replayed." },
-    { "id": "t5-code", "text": "Every guarantee is a require in Backstop dot cash. The rescue path checks the exact transaction shape; that the vault sits at positions four and five; a relative timelock cooldown; the genuine price contract; that the loan belongs to this key and its debt, state and interest manager are unchanged; that the manage function is Paryon's; that the key comes straight back with its minting capability; that the reserve returns, minus at most the top-up and a capped fee; and the ratio rules: below the trigger, never above the target, and no draining through tiny rescues. The ratio maths is cross-multiplied, with no division." },
-    { "id": "t6-withdraw", "text": "There are two ways out, both only for the borrower. Owner spend checks the owner's key and signature. Owner withdraw exists because WizardConnect wallets sign only their own coins: the owner spends one of their own coins in the same transaction, the contract checks it sits at the owner's address, every output pays the owner, and the fee is capped." },
-    { "id": "t7-tests", "text": "Each rescue attack is tested twice: against Paryon's real compiled contracts, and with Paryon's checks replaced by permissive stand-ins, where it must fail on Backstop's own require, matched by its message. So no guarantee depends on Paryon catching the same mistake. The suite runs one hundred and three tests, including the full demo on an in-memory node that enforces relative timelocks, standardness and fees the way BCHN does." },
-    { "id": "t8-chipnet", "text": "And it ran on chipnet, with Paryon's unmodified loan, sidecar, manage and price contract bytecode. Here is the setup, the price update, the rescue sent by the keeper, and the withdraw. The setup and the withdraw were signed in Cashonize over WizardConnect." },
-    { "id": "t9-limits", "text": "The known limitations. On chipnet the price comes from a demo oracle key; mainnet would use General Protocols. A stale price means no rescue, but also no liquidation. A crash faster than any keeper, or within the cooldown, can still be liquidated first. Redemptions are out of scope, and there is one loan per vault. Backstop reduces liquidation risk without asking the borrower to trust anyone." }
+    {
+      "id": "t1-title",
+      "text": "This is the technical walkthrough of Backstop: a CashScript vault that pre-funds a rescue for a ParyonUSD loan."
+    },
+    {
+      "id": "t2-pieces",
+      "text": "There are four pieces. The borrower's wallet. The vault, which is two outputs at one contract address: a key output holding Paryon's minting loan key, and a reserve output holding plain BCH. They are separate because Paryon's manage function requires the loan key to come back with exactly the value it went in with. Then Paryon's own contracts: the price contract, the loan with its sidecar, and the manage function. And the keeper: a stateless process with no keys and no funds."
+    },
+    {
+      "id": "t3-setup",
+      "text": "Setup is one wallet signature. The loan key and the reserve move into the vault, and an OP_RETURN records every vault parameter. So anyone can rebuild the vault's address and rules from chain data alone. The keeper and the web app need no database."
+    },
+    {
+      "id": "t4-rescue",
+      "text": "The rescue is Paryon's own add-collateral transaction, manage with no repayment, with the vault at inputs four and five. Paryon fixes inputs and outputs zero to four and leaves index five onward free, which is where the reserve and an optional keeper reward go. Nobody signs. The price comes from Paryon's price contract at input zero, which only accepts oracle-signed messages, verified with check data sig, with an increasing sequence number, so an old low price cannot be replayed."
+    },
+    {
+      "id": "t5-code",
+      "text": "Every guarantee is a require in Backstop dot cash. The rescue path checks the exact transaction shape; that the vault sits at positions four and five; a relative timelock cooldown; the genuine price contract; that the loan belongs to this key and its debt, state and interest manager are unchanged; that the manage function is Paryon's; that the key comes straight back with its minting capability; that the reserve returns, minus at most the top-up and a capped fee; and the ratio rules: below the trigger, never above the target, and no draining through tiny rescues. The ratio maths is cross-multiplied, with no division."
+    },
+    {
+      "id": "t6-withdraw",
+      "text": "There are two ways out, both only for the borrower. Owner spend checks the owner's key and signature. Owner withdraw exists because WizardConnect wallets sign only their own coins: the owner spends one of their own coins in the same transaction, the contract checks it sits at the owner's address, every output pays the owner, and the fee is capped."
+    },
+    {
+      "id": "t7-tests",
+      "text": "Each rescue attack is tested twice: against Paryon's real compiled contracts, and with Paryon's checks replaced by permissive stand-ins, where it must fail on Backstop's own require, matched by its message. So no guarantee depends on Paryon catching the same mistake. The suite runs one hundred and three tests, including the full demo on an in-memory node that enforces relative timelocks, standardness and fees the way BCHN does."
+    },
+    {
+      "id": "t8-chipnet",
+      "text": "And it ran on chipnet, with Paryon's unmodified loan, sidecar, manage and price contract bytecode. Here is the setup, the price update, the rescue sent by the keeper, and the withdraw. The setup and the withdraw were signed in Cashonize over WizardConnect."
+    },
+    {
+      "id": "t9-limits",
+      "text": "The known limitations. On chipnet the price comes from a demo oracle key; mainnet would use General Protocols. A stale price means no rescue, but also no liquidation. A crash faster than any keeper, or within the cooldown, can still be liquidated first. Redemptions are out of scope, and there is one loan per vault. Backstop reduces liquidation risk without asking the borrower to trust anyone."
+    }
   ]
 }

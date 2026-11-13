@@ -298,15 +298,25 @@ const pitch = [
         await page.mouse.up();
         await point(page.locator('.scale'));
         await wait(2500);
-        await click(page.getByText('More settings'));
-        await page.locator('#cooldown').selectOption('1');
-        await wait(800);
         await click(page.getByRole('button', { name: 'Protect my loan' }));
         await page.getByRole('heading', { name: 'Your loan is protected' }).waitFor({ timeout: 60000 });
         await scrollTo(0);
       })(),
     ]);
     await wait(1500);
+  },
+  async ({ page, say, wait, click, point }) => {
+    await Promise.all([
+      say('pitch', 'p4b-attack'),
+      (async () => {
+        await point(page.locator('.attack-zone'));
+        await wait(600);
+        await click(page.getByRole('button', { name: 'Copy the loan key' }));
+        await page.getByText('Refused', { exact: true }).waitFor({ timeout: 60000 });
+        await point(page.locator('.attack-result'));
+      })(),
+    ]);
+    await wait(900);
   },
   async ({ page, say, wait, click, scrollTo, point }) => {
     await Promise.all([

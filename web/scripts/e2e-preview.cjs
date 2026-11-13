@@ -36,9 +36,8 @@ const server = http.createServer((req, res) => {
       await page.goto(url);
       await step('1-your-loan', () => page.getByRole('heading', { name: 'Your loan' }).waitFor({ timeout: 60000 }));
       await step('2-protected', async () => {
+        // The judge path: defaults only (the preview's cooldown is one block).
         await page.locator('#reserve').fill('0.3');
-        await page.getByText('More settings').click();
-        await page.locator('#cooldown').selectOption('1');
         await page.getByRole('button', { name: 'Protect my loan' }).click();
         await page.getByRole('heading', { name: 'Your loan is protected' }).waitFor({ timeout: 60000 });
       });

@@ -10,11 +10,13 @@ import { Icon, Tween } from './ui';
 const FEE_RESERVE_SATS = 3_000n; // what the setup transaction itself needs, roughly
 const COOLDOWNS = [1n, 6n, 24n];
 
-export function SetupScreen({ loan, priceCents, walletBchSats, onProtect }: {
+export function SetupScreen({ loan, priceCents, walletBchSats, onProtect, defaultCooldownBlocks = DEFAULT_RULES.cooldownBlocks }: {
   loan: LoanView;
   priceCents: bigint;
   walletBchSats: bigint;
   onProtect: (choices: ProtectionChoices) => Promise<void>;
+  /** The local preview starts at one block, so a rescue can follow the setup straight away. */
+  defaultCooldownBlocks?: bigint;
 }) {
   const available = walletBchSats > FEE_RESERVE_SATS ? walletBchSats - FEE_RESERVE_SATS : 0n;
   const suggested = (() => {
@@ -29,7 +31,7 @@ export function SetupScreen({ loan, priceCents, walletBchSats, onProtect }: {
   const [trigger, setTrigger] = useState<bigint>(DEFAULT_RULES.triggerRatioBps);
   const [target, setTarget] = useState<bigint>(DEFAULT_RULES.targetRatioBps);
   const [maxTopUpText, setMaxTopUpText] = useState('');
-  const [cooldown, setCooldown] = useState<bigint>(DEFAULT_RULES.cooldownBlocks);
+  const [cooldown, setCooldown] = useState<bigint>(defaultCooldownBlocks);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
 
