@@ -35,7 +35,7 @@ const display = (text) => text
   .replace(/check data sig/g, 'checkDataSig')
   .replace(/Owner spend/g, 'ownerSpend').replace(/Owner withdraw/g, 'ownerWithdraw')
   .replace(/one hundred and ten percent/g, '110%').replace(/one hundred and fifteen percent/g, '115%')
-  .replace(/one hundred and fifty percent/g, '150%').replace(/one hundred and twenty-five/g, '125')
+  .replace(/one hundred and fifty percent/g, '150%').replace(/one hundred and sixty-two/g, '162')
   .replace(/three a\.m\./g, '3am.').replace(/inputs four and five/g, 'inputs 4 and 5')
   .replace(/positions four and five/g, 'positions 4 and 5').replace(/zero to four/g, '0 to 4')
   .replace(/index five/g, 'index 5').replace(/input zero/g, 'input 0');
