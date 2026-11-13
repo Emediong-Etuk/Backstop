@@ -38,6 +38,12 @@ const server = http.createServer((req, res) => {
         await page.getByRole('button', { name: 'Protect my loan' }).click();
         await page.getByRole('heading', { name: 'Your loan is protected' }).waitFor({ timeout: 60000 });
       });
+      await step('2b-attack-refused', async () => {
+        for (const name of ['Steal the reserve', 'Overcharge the fee', 'Copy the loan key']) {
+          await page.getByRole('button', { name }).click();
+          await page.getByText('Refused', { exact: true }).waitFor({ timeout: 60000 });
+        }
+      });
       await step('3-price-falls', async () => {
         await page.getByRole('button', { name: 'Price to $265' }).click();
         await page.getByRole('heading', { name: 'Your loan is below your rescue level' }).waitFor({ timeout: 60000 });

@@ -155,7 +155,7 @@ export default function Home() {
           </div>
         )}
 
-        {preview && <PreviewPanel controls={preview} onChange={async () => { setNotice(undefined); await refresh(); }} />}
+        {preview && <PreviewPanel controls={preview} canAttack={!!activeVault} onChange={async () => { setNotice(undefined); await refresh(); }} />}
 
         <footer>
           <span className="brand-mini"><img src="icon.svg" alt="" width={18} height={18} /> Backstop</span>

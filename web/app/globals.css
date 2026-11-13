@@ -691,3 +691,22 @@ footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border
   .health-labels { height: 58px; }
   .health-labels span:nth-child(2) { top: 32px; }
 }
+
+/* ---------- "Try to break it" (preview) ---------- */
+.attack-zone { margin-top: 18px; padding: 16px; border-radius: 16px; border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent); background: color-mix(in srgb, var(--danger) 5%, transparent); }
+.attack-head { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
+.attack-head h3 { margin-bottom: 2px; }
+.attack-head p { margin: 0; }
+.attack-icon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: var(--danger-soft); color: var(--danger); flex: none; }
+.attack-button:hover:not(:disabled) { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
+.attack-result { margin-top: 14px; padding: 14px 16px; border-radius: 14px; background: var(--surface-solid); border: 1px solid var(--border-strong); animation: screen-in 0.45s var(--ease) both; }
+.attack-result.refused { border-color: color-mix(in srgb, var(--accent) 55%, transparent); box-shadow: var(--glow); }
+.attack-verdict { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+.attack-stamp { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-weight: 800; font-size: 0.85rem; letter-spacing: 0.06em; text-transform: uppercase; background: var(--accent-soft); color: var(--accent); animation: stamp-in 0.5s var(--ease) both; }
+.attack-result.failed .attack-stamp { background: var(--danger-soft); color: var(--danger); }
+@keyframes stamp-in { from { transform: scale(1.6) rotate(-6deg); opacity: 0; } to { transform: none; opacity: 1; } }
+.attack-proof { display: grid; gap: 8px; margin: 10px 0; }
+.attack-proof .label-text { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 2px; }
+.attack-proof code { display: block; font: 0.84rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 8px 10px; border-radius: 8px; background: rgba(0, 0, 0, 0.25); overflow-wrap: anywhere; }
+@media (prefers-color-scheme: light) { .attack-proof code { background: rgba(15, 23, 42, 0.05); } }
+.attack-note { margin: 0; color: var(--accent); font-weight: 600; }
