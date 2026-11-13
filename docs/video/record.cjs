@@ -400,7 +400,7 @@ const technical = [
     await wait(600);
     const lines = chunk(text('technical', 't7-tests'));
     const total = lines.reduce((s, l) => s + readSeconds(l), 0) * 1000;
-    await page.evaluate((ms) => { window.playTests(ms); setTimeout(() => window.countTo(103, 2500), ms * 0.25); }, total * 0.85);
+    await page.evaluate((ms) => { window.playTests(ms); setTimeout(() => window.countTo(103, ms * 0.9), 300); }, total * 0.85);
     await say('technical', 't7-tests');
     await wait(1200);
   },

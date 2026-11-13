@@ -104,12 +104,12 @@
   .slide.on .col .row:nth-child(5) { animation-delay: 0.4s; } .slide.on .col .row:nth-child(6) { animation-delay: 0.5s; } .slide.on .col .row:nth-child(7) { animation-delay: 0.6s; } .slide.on .col .row:nth-child(8) { animation-delay: 0.7s; }
 
   /* code viewer */
-  .codewrap { display: grid; grid-template-columns: 330px 1fr; gap: 26px; height: 540px; }
+  .codewrap { display: grid; grid-template-columns: 330px 1fr; gap: 26px; height: 520px; }
   .codeside h2 { font-size: 30px; }
   .codeside .topic { font-size: 16px; padding: 6px 12px; border-radius: 12px; margin-bottom: 6px; color: var(--muted); border: 1px solid transparent; transition: all 0.4s var(--ease); }
   .codeside .topic.on { color: var(--text); background: rgba(52,211,153,0.1); border-color: rgba(52,211,153,0.5); }
-  .code { position: relative; overflow: hidden; border-radius: 18px; background: #0a1017; border: 1px solid var(--border-strong); }
-  .code .bar { height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 14px; border-bottom: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+  .code { position: relative; overflow: hidden; border-radius: 18px; background: #0a1017; border: 1px solid var(--border-strong); height: 500px; align-self: start; }
+  .code .bar { position: relative; z-index: 2; background: #0a1017; height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 14px; border-bottom: 1px solid var(--border); color: var(--muted); font-size: 13px; }
   .code .bar i { width: 11px; height: 11px; border-radius: 50%; background: #334; display: inline-block; }
   .code .scroll { position: absolute; top: 38px; left: 0; right: 0; transition: transform 0.9s var(--ease); }
   .code pre { margin: 0; padding: 10px 0; font: 13.6px/1.62 "DejaVu Sans Mono", monospace; }
@@ -120,10 +120,10 @@
   .tok-k { color: #c792ea; } .tok-f { color: #82aaff; } .tok-s { color: #c3e88d; } .tok-c { color: #5c6b7d; font-style: italic; } .tok-n { color: #f78c6c; } .tok-r { color: #34d399; font-weight: 700; }
 
   /* tests */
-  .tests { display: grid; grid-template-columns: 1.15fr 1fr; gap: 24px; height: 540px; }
+  .tests { display: grid; grid-template-columns: 1.15fr 1fr; gap: 24px; height: 430px; }
   .term { position: relative; overflow: hidden; border-radius: 18px; background: #05080c; border: 1px solid var(--border-strong); }
   .term .bar { height: 36px; display: flex; align-items: center; padding: 0 14px; gap: 8px; color: var(--muted); font-size: 13px; border-bottom: 1px solid var(--border); }
-  .term .body { position: absolute; top: 36px; bottom: 0; left: 0; right: 0; padding: 12px 16px; font: 12.4px/1.6 "DejaVu Sans Mono", monospace; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; }
+  .term .body { position: absolute; top: 36px; bottom: 0; left: 0; right: 0; padding: 12px 16px; font: 12.4px/1.6 "DejaVu Sans Mono", monospace; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-start; }
   .term .body div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #b6c2d1; }
   .term .body .ok { color: var(--accent); }
   .term .body .sum { color: var(--text); font-weight: 700; }
@@ -395,11 +395,12 @@
       div.textContent = line.replace(/ \d+ms$/, '');
       if (line.startsWith('✓')) div.className = 'ok';
       body.appendChild(div);
-      while (body.children.length > 26) body.removeChild(body.firstChild);
+      while (body.children.length > 18) body.removeChild(body.firstChild);
       await new Promise((r) => setTimeout(r, step));
     }
     for (const s of ['', ' Test Files  13 passed (13)', '      Tests  103 passed (103)']) {
       const div = document.createElement('div'); div.textContent = s; div.className = 'sum'; body.appendChild(div);
+      while (body.children.length > 18) body.removeChild(body.firstChild);
     }
   };
   window.countTo = (n, ms) => {
